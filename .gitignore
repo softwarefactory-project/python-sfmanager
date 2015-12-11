@@ -1,0 +1,9 @@
+*.py[cod]
+.tox
+*.egg
+*.egg-info
+.coverage
+coverage.xml
+sfmanager.log
+build
+tmp_backup
