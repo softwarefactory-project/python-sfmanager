@@ -330,6 +330,9 @@ def project_command(sp):
                     nargs='?')
     cp.add_argument('--private', action='store_true',
                     help='set if the project is private')
+    cp.add_argument('--add-branches', action='store_true',
+                    help='include all upstream git branches to the project'
+                    ' repository')
 
     dp = sp.add_parser('delete')
     dp.add_argument('--name', '-n', nargs='?', metavar='project-name',
@@ -512,7 +515,7 @@ def project_action(args, base_url, headers):
     else:
         return False
 
-    url = base_url + "/project/%s" % args.name
+    url = build_url(base_url, "project", args.name)
     if subcommand == 'create':
         if getattr(args, 'core_group'):
             args.core_group = split_and_strip(args.core_group)
@@ -529,7 +532,8 @@ def project_action(args, base_url, headers):
                       'dev_group': 'dev-group-members',
                       'upstream': 'upstream',
                       'upstream_ssh_key': 'upstream-ssh-key',
-                      'private': 'private'}
+                      'private': 'private',
+                      'add_branches': 'add-branches'}
         info = {}
         for key, word in substitute.iteritems():
             if getattr(args, key):
