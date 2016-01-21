@@ -330,6 +330,8 @@ def project_command(sp):
                     nargs='?')
     cp.add_argument('--private', action='store_true',
                     help='set if the project is private')
+    cp.add_argument('--readonly', action='store_true',
+                    help='set if patch merging should be disabled')
     cp.add_argument('--add-branches', action='store_true',
                     help='include all upstream git branches to the project'
                     ' repository')
@@ -533,6 +535,7 @@ def project_action(args, base_url, headers):
                       'upstream': 'upstream',
                       'upstream_ssh_key': 'upstream-ssh-key',
                       'private': 'private',
+                      'readonly': 'readonly',
                       'add_branches': 'add-branches'}
         info = {}
         for key, word in substitute.iteritems():

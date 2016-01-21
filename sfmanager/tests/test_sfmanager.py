@@ -71,8 +71,8 @@ class TestProjectUserAction(BaseFunctionalTest):
                            sfmanager.project_action, expected_url)
 
     def test_create_project_with_branches(self):
-        cmd = 'project create --name proj2 --upstream ssh://tests.dom/test.git' \
-              ' --add-branches'
+        cmd = ('project create --name proj2 '
+               '--upstream ssh://tests.dom/test.git --add-branches')
         args = self.default_args
         args += cmd.split()
         excepted_url = self.base_url + 'project/proj2/'
