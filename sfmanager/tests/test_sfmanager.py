@@ -172,7 +172,7 @@ class TestUserActions(BaseFunctionalTest):
         data = {'email': 'e@test.com', 'password': 'abc123'}
         cmd = 'user update --password'
         args += cmd.format(**data).split()
-        self.assertRaises(SystemExit, self.parser.parse_args, args)
+        self.assertRaises(SystemExit, self.parser.parse_args)
 
 
 class TestReplicationActions(BaseFunctionalTest):

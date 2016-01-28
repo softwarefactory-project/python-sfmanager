@@ -310,6 +310,31 @@ def user_management_command(sp):
                       required=True, help='the user to delete')
 
 
+def pages_command(topparser):
+    pages_parser = topparser.add_parser('pages', help='pages related commands')
+    sub_cmds = pages_parser.add_subparsers(dest='subcommand')
+    update = sub_cmds.add_parser('update',
+                                 help='Set the url to the project\'s page')
+    get = sub_cmds.add_parser('get',
+                              help='Get the current url to the ' +
+                                   'project\'s page')
+    delete = sub_cmds.add_parser('delete',
+                                 help='Delete the current url to the ' +
+                                      'project\'s page')
+    update.add_argument('--name', '-n',
+                        required=True,
+                        help='The project\'s name')
+    update.add_argument('--dest', '-d',
+                        required=True,
+                        help='The page\'s url')
+    delete.add_argument('--name', '-n',
+                        required=True,
+                        help='The project\'s name')
+    get.add_argument('--name', '-n',
+                     required=True,
+                     help='The project\'s name')
+
+
 def project_command(sp):
     cp = sp.add_parser('create')
     cp.add_argument('--name', '-n', nargs='?', metavar='project-name',
@@ -378,6 +403,7 @@ def command_options(parser):
     system_command(sp)
     replication_command(sp)
     tests_command(sp)
+    pages_command(sp)
 
 
 def get_cookie(args):
@@ -575,6 +601,27 @@ def tests_action(args, base_url, headers):
 
     resp = requests.put(url, data=json.dumps(data), headers=headers,
                         cookies=dict(auth_pubtkt=get_cookie(args)))
+    return response(resp)
+
+
+def pages_action(args, base_url, headers):
+    if args.command != 'pages':
+        return False
+
+    if getattr(args, 'subcommand') not in ('update', 'delete', 'get'):
+        return False
+    url = build_url(base_url, 'pages', args.name)
+    data = {}
+    if args.subcommand == 'update':
+        data['url'] = args.dest
+        resp = requests.post(url, data=json.dumps(data), headers=headers,
+                             cookies=dict(auth_pubtkt=get_cookie(args)))
+    if args.subcommand == 'get':
+        resp = requests.get(url, headers=headers,
+                            cookies=dict(auth_pubtkt=get_cookie(args)))
+    if args.subcommand == 'delete':
+        resp = requests.delete(url, headers=headers,
+                               cookies=dict(auth_pubtkt=get_cookie(args)))
     return response(resp)
 
 
@@ -872,7 +919,8 @@ def main():
            user_management_action(args, base_url, headers) or
            gerrit_ssh_config_action(args, base_url, headers) or
            membership_action(args, base_url, headers) or
-           tests_action(args, base_url, headers)):
+           tests_action(args, base_url, headers) or
+           pages_action(args, base_url, headers)):
         die("ManageSF failed to execute your command")
 
 if __name__ == '__main__':
