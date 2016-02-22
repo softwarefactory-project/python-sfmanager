@@ -14,7 +14,8 @@
 
 import argparse
 import json
-from tempfile import mkstemp
+import os
+from tempfile import mkstemp, NamedTemporaryFile
 
 from unittest import TestCase
 from mock import patch, MagicMock
@@ -42,6 +43,9 @@ class BaseFunctionalTest(TestCase):
         default_args = '--url {url} --auth titi:toto --auth-server-url {url}'
         self.default_args = default_args.format(url=self.base_url).split()
         self.cookies = {'auth_pubtkt': 'fake_cookie'}
+        self.expected_gh_headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'token ghtoken'}
 
     def tearDown(self):
         pass
@@ -260,3 +264,140 @@ class TestSystemActions(BaseFunctionalTest):
                                                             self.base_url,
                                                             self.headers))
                     method.assert_called_with(expected_url, **params)
+
+
+class TestGithubActions(BaseFunctionalTest):
+    def test_create_repo(self):
+        args = '--github-token ghtoken github create-repo -n reponame'.split()
+        parsed_args = self.parser.parse_args(args)
+
+        expected_url = "https://api.github.com/user/repos"
+        expected_data = {"name": "reponame", "private": False}
+
+        with patch('requests.post') as method:
+            sfmanager.github_action(parsed_args, "", {})
+
+            call_args, call_kwargs = method.call_args
+            self.assertEqual(call_args[0], expected_url)
+            self.assertEqual(call_kwargs.get('headers'),
+                             self.expected_gh_headers)
+            self.assertEqual(json.loads(call_kwargs.get('data')),
+                             expected_data)
+
+    def test_create_org_repo(self):
+        args = '--github-token ghtoken '
+        args += 'github create-repo -n reponame -o orgname'
+        parsed_args = self.parser.parse_args(args.split())
+
+        expected_url = "https://api.github.com/orgs/orgname/repos"
+        expected_data = {"name": "reponame", "private": False}
+
+        with patch('requests.post') as method:
+            sfmanager.github_action(parsed_args, "", {})
+
+            call_args, call_kwargs = method.call_args
+            self.assertEqual(call_args[0], expected_url)
+            self.assertEqual(call_kwargs.get('headers'),
+                             self.expected_gh_headers)
+            self.assertEqual(json.loads(call_kwargs.get('data')),
+                             expected_data)
+
+    def test_fork_repo(self):
+        args = '--github-token ghtoken github fork-repo '
+        args += '--origin https://github.com/openstack/swift'
+        parsed_args = self.parser.parse_args(args.split())
+
+        expected_url = "https://api.github.com/repos/openstack/swift/forks"
+
+        with patch('requests.post') as method:
+            sfmanager.github_action(parsed_args, "", {})
+
+            call_args, call_kwargs = method.call_args
+            self.assertEqual(call_args[0], expected_url)
+            self.assertEqual(call_kwargs.get('headers'),
+                             self.expected_gh_headers)
+
+    def test_fork_repo_org(self):
+        args = '--github-token ghtoken github fork-repo '
+        args += '--origin https://github.com/openstack/swift '
+        args += '--org rdo-packages'
+        parsed_args = self.parser.parse_args(args.split())
+
+        expected_url = "https://api.github.com/repos/openstack/swift/forks"
+
+        with patch('requests.post') as method:
+            sfmanager.github_action(parsed_args, "", {})
+
+            call_args, call_kwargs = method.call_args
+            self.assertEqual(call_args[0], expected_url)
+            self.assertEqual(call_kwargs.get('headers'),
+                             self.expected_gh_headers)
+
+        expected_data = {"organization": "rdo-packages"}
+        self.assertEqual(json.loads(call_kwargs.get('data')), expected_data)
+
+    @patch('requests.delete')
+    @patch('requests.get')
+    def test_delete_repo(self, get_method, delete_method):
+        args = '--github-token ghtoken github delete-repo -n reponame'.split()
+        parsed_args = self.parser.parse_args(args)
+
+        get_method.return_value.json.return_value = {'login': 'username'}
+        expected_url = "https://api.github.com/repos/username/reponame"
+        kwargs = {'headers': self.expected_gh_headers}
+        sfmanager.github_action(parsed_args, "", {})
+        delete_method.assert_called_with(expected_url, **kwargs)
+
+    @patch('requests.delete')
+    @patch('requests.get')
+    def test_delete_org_repo(self, get_method, delete_method):
+        args = '--github-token ghtoken '
+        args += 'github delete-repo -n reponame -o orgname'
+        parsed_args = self.parser.parse_args(args.split())
+
+        expected_url = "https://api.github.com/repos/orgname/reponame"
+        kwargs = {'headers': self.expected_gh_headers}
+        sfmanager.github_action(parsed_args, "", {})
+        delete_method.assert_called_with(expected_url, **kwargs)
+
+    @patch('requests.post')
+    @patch('requests.get')
+    def _test_deploy_key(self, orgname, get_method, post_method):
+        with NamedTemporaryFile(delete=False) as tmpfile:
+            tmpfile.write("ssh-rsa")
+
+        args = '--github-token ghtoken '
+        args += 'github deploy-key -n reponame '
+        args += '--keyfile %s ' % tmpfile.name
+        if orgname:
+            args += '-o orgname '
+            expected_owner = "orgname"
+        else:
+            expected_owner = "username"
+
+        parsed_args = self.parser.parse_args(args.split())
+
+        get_method.return_value.json.return_value = {'login': 'username'}
+
+        expected_url = "https://api.github.com/repos/%s/reponame/keys" \
+            % expected_owner
+        expected_data = {"read_only": False, "title": "%s ssh key" %
+                         expected_owner, "key": "ssh-rsa"}
+        sfmanager.github_action(parsed_args, "", {})
+
+        call_args, call_kwargs = post_method.call_args
+        self.assertEqual(call_args[0], expected_url)
+        self.assertEqual(call_kwargs.get('headers'), self.expected_gh_headers)
+        self.assertEqual(json.loads(call_kwargs.get('data')), expected_data)
+
+        # Remove tmpfile
+        try:
+            os.remove(tmpfile.name)
+        except IOError:
+            pass
+
+    def test_deploy_key(self):
+        self._test_deploy_key("")
+
+    def test_org_deploy_key(self):
+        self._test_deploy_key("orgname")

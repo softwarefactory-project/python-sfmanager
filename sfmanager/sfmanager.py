@@ -156,7 +156,7 @@ def split_and_strip(s):
 def default_arguments(parser):
     parser.add_argument('--url',
                         help='Software Factory public gateway URL',
-                        required=True)
+                        required=False)
     parser.add_argument('--auth', metavar='username[:password]',
                         help='Authentication information', required=False)
     parser.add_argument('--github-token', metavar='GithubPersonalAccessToken',
@@ -378,6 +378,37 @@ def tests_command(parser):
                       required=True)
 
 
+def github_command(parser):
+    gh = parser.add_parser('github', help='Github tools')
+
+    sub_cmd = gh.add_subparsers(dest='subcommand')
+
+    createrepo = sub_cmd.add_parser('create-repo')
+    createrepo.add_argument(
+        '--name', '-n', nargs='?', metavar='project-name', required=True)
+    createrepo.add_argument(
+        '--org', '-o', nargs='?', metavar='organization')
+
+    deleterepo = sub_cmd.add_parser('delete-repo')
+    deleterepo.add_argument(
+        '--name', '-n', nargs='?', metavar='project-name', required=True)
+    deleterepo.add_argument(
+        '--org', '-o', nargs='?', metavar='organization')
+
+    deploy_key = sub_cmd.add_parser('deploy-key')
+    deploy_key.add_argument(
+        '--name', '-n', nargs='?', metavar='project-name', required=True)
+    deploy_key.add_argument(
+        '--org', '-o', nargs='?', metavar='organization')
+
+    deploy_key.add_argument('--keyfile', nargs='?', required=True)
+
+    fork_repo = sub_cmd.add_parser('fork-repo')
+    fork_repo.add_argument(
+        '--origin', '-o', nargs='?', metavar='origin', required=True)
+    fork_repo.add_argument('--org', nargs='?', metavar='organization')
+
+
 def command_options(parser):
     sp = parser.add_subparsers(dest="command")
     project_commands = sp.add_parser('project',
@@ -404,6 +435,7 @@ def command_options(parser):
     replication_command(sp)
     tests_command(sp)
     pages_command(sp)
+    github_command(sp)
 
 
 def get_cookie(args):
@@ -812,6 +844,90 @@ def replication_action(args, base_url, headers):
         resp = requests.post(url, headers=headers, data=json.dumps(info),
                              cookies=dict(auth_pubtkt=get_cookie(args)))
         return response(resp)
+    return False
+
+
+def github_action(args, base_url, headers):
+    if args.subcommand not in ['create-repo', 'delete-repo',
+                               'deploy-key', 'fork-repo']:
+        return False
+
+    if not args.github_token:
+        return False
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "token %s" % args.github_token
+    }
+
+    if args.subcommand == 'create-repo':
+        data = json.dumps({"name": args.name, "private": False})
+
+        if args.org:
+            url = "https://api.github.com/orgs/%s/repos" % args.org
+        else:
+            url = "https://api.github.com/user/repos"
+        resp = requests.post(url, headers=headers, data=data)
+        if resp.status_code == requests.codes.created:
+            logger.info("Github repo %s created." % args.name)
+        return response(resp)
+
+    elif args.subcommand == 'fork-repo':
+        parsed = urlparse.urlparse(args.origin)
+        if not parsed.netloc:
+            logger.info("Invalid original repo url.")
+            return
+        owner = parsed.path.split('/')[1]
+        repo = parsed.path.split('/')[2]
+        url = "https://api.github.com/repos/%s/%s/forks" % (owner, repo)
+        data = None
+        if args.org:
+            data = json.dumps({'organization': args.org})
+        resp = requests.post(url, headers=headers, data=data)
+        if resp.status_code == requests.codes.created:
+            logger.info("Github repo %s forked." % args.name)
+        return response(resp)
+
+    elif args.subcommand == 'delete-repo':
+        if args.org:
+            owner = args.org
+        else:
+            url = "https://api.github.com/user"
+            resp = requests.get(url, headers=headers)
+            owner = resp.json().get('login')
+
+        url = "https://api.github.com/repos/%s/%s" % (owner, args.name)
+
+        resp = requests.delete(url, headers=headers)
+        if resp.status_code == requests.codes.ok:
+            logger.info("Github repo %s deleted." % args.name)
+        return response(resp)
+
+    elif args.subcommand == "deploy-key":
+        if args.keyfile:
+            if args.org:
+                owner = args.org
+            else:
+                url = "https://api.github.com/user"
+                resp = requests.get(url, headers=headers)
+                owner = resp.json().get('login')
+
+            with open(args.keyfile, 'r') as f:
+                sshkey = f.read()
+
+            data = json.dumps(
+                {"title": "%s ssh key" % owner,
+                 "key": sshkey, "read_only": False}
+            )
+
+            url = "https://api.github.com/repos/%s/%s/keys" % (
+                owner, args.name)
+            resp = requests.post(url, headers=headers, data=data)
+
+            if resp.status_code == requests.codes.created:
+                logger.info("SSH deploy key %s added to Github repo %s." % (
+                            args.keyfile, args.name))
+            return response(resp)
 
     return False
 
@@ -854,7 +970,13 @@ def main():
     default_arguments(parser)
     command_options(parser)
     args = parser.parse_args()
-    base_url = "%s/manage" % args.url.rstrip('/')
+
+    if not args.url:
+        base_url = ""
+        if args.command != "github":
+            parser.error('argument --url is required')
+    else:
+        base_url = "%s/manage" % args.url.rstrip('/')
 
     if not args.debug:
         ch.setLevel(logging.ERROR)
@@ -920,7 +1042,8 @@ def main():
            gerrit_ssh_config_action(args, base_url, headers) or
            membership_action(args, base_url, headers) or
            tests_action(args, base_url, headers) or
-           pages_action(args, base_url, headers)):
+           pages_action(args, base_url, headers) or
+           github_action(args, base_url, headers)):
         die("ManageSF failed to execute your command")
 
 if __name__ == '__main__':
