@@ -304,34 +304,38 @@ class TestGithubActions(BaseFunctionalTest):
 
     def test_fork_repo(self):
         args = '--github-token ghtoken github fork-repo '
-        args += '--origin https://github.com/openstack/swift'
+        args += '--fork https://github.com/openstack/swift '
+        args += '--name swift'
         parsed_args = self.parser.parse_args(args.split())
 
         expected_url = "https://api.github.com/repos/openstack/swift/forks"
 
         with patch('requests.post') as method:
-            sfmanager.github_action(parsed_args, "", {})
+            with patch('requests.patch'):
+                sfmanager.github_action(parsed_args, "", {})
 
-            call_args, call_kwargs = method.call_args
-            self.assertEqual(call_args[0], expected_url)
-            self.assertEqual(call_kwargs.get('headers'),
-                             self.expected_gh_headers)
+                call_args, call_kwargs = method.call_args
+                self.assertEqual(call_args[0], expected_url)
+                self.assertEqual(call_kwargs.get('headers'),
+                                 self.expected_gh_headers)
 
     def test_fork_repo_org(self):
         args = '--github-token ghtoken github fork-repo '
-        args += '--origin https://github.com/openstack/swift '
-        args += '--org rdo-packages'
+        args += '--fork https://github.com/openstack/swift '
+        args += '--org rdo-packages '
+        args += '--name swift'
         parsed_args = self.parser.parse_args(args.split())
 
         expected_url = "https://api.github.com/repos/openstack/swift/forks"
 
         with patch('requests.post') as method:
-            sfmanager.github_action(parsed_args, "", {})
+            with patch('requests.patch'):
+                sfmanager.github_action(parsed_args, "", {})
 
-            call_args, call_kwargs = method.call_args
-            self.assertEqual(call_args[0], expected_url)
-            self.assertEqual(call_kwargs.get('headers'),
-                             self.expected_gh_headers)
+                call_args, call_kwargs = method.call_args
+                self.assertEqual(call_args[0], expected_url)
+                self.assertEqual(call_kwargs.get('headers'),
+                                 self.expected_gh_headers)
 
         expected_data = {"organization": "rdo-packages"}
         self.assertEqual(json.loads(call_kwargs.get('data')), expected_data)

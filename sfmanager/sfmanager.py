@@ -405,8 +405,11 @@ def github_command(parser):
 
     fork_repo = sub_cmd.add_parser('fork-repo')
     fork_repo.add_argument(
-        '--origin', '-o', nargs='?', metavar='origin', required=True)
-    fork_repo.add_argument('--org', nargs='?', metavar='organization')
+        '--fork', '-f', nargs='?', metavar='fork', required=True)
+    fork_repo.add_argument(
+        '--name', '-n', nargs='?', metavar='project-name', required=True)
+    fork_repo.add_argument(
+        '--org', '-o', nargs='?', metavar='organization')
 
 
 def command_options(parser):
@@ -471,12 +474,13 @@ def get_cookie(args):
         die(e.message)
 
 
-def response(resp, as_text=False):
+def response(resp, as_text=False, quiet=False):
     if resp.ok:
-        if as_text:
-            print json.loads(resp.text)
-        else:
-            print resp.text
+        if not quiet:
+            if as_text:
+                print json.loads(resp.text)
+            else:
+                print resp.text
         return True
     if resp.status_code // 100 == 4:
         msg = 'NOT FOUND : %s' % resp.text
@@ -869,11 +873,11 @@ def github_action(args, base_url, headers):
             url = "https://api.github.com/user/repos"
         resp = requests.post(url, headers=headers, data=data)
         if resp.status_code == requests.codes.created:
-            logger.info("Github repo %s created." % args.name)
-        return response(resp)
+            print "Github repo %s created." % args.name
+        return response(resp, quiet=True)
 
     elif args.subcommand == 'fork-repo':
-        parsed = urlparse.urlparse(args.origin)
+        parsed = urlparse.urlparse(args.fork)
         if not parsed.netloc:
             logger.info("Invalid original repo url.")
             return
@@ -882,11 +886,24 @@ def github_action(args, base_url, headers):
         url = "https://api.github.com/repos/%s/%s/forks" % (owner, repo)
         data = None
         if args.org:
-            data = json.dumps({'organization': args.org})
-        resp = requests.post(url, headers=headers, data=data)
-        if resp.status_code == requests.codes.created:
-            logger.info("Github repo %s forked." % args.name)
-        return response(resp)
+            data = {'organization': args.org}
+        data = json.dumps(data)
+        resp1 = requests.post(url, headers=headers, data=data)
+        if resp1.status_code == requests.codes.accepted:
+            print "Github repo %s forked." % repo
+        if args.name:
+            data = json.dumps({'name': args.name})
+            if args.org:
+                owner = args.org
+            else:
+                owner = resp1.json()["owner"]["login"]
+            url = "https://api.github.com/repos/%s/%s" % (owner, repo)
+            resp2 = requests.patch(url, headers=headers, data=data)
+            if resp2.status_code == requests.codes.ok:
+                print "Github repo renamed from %s to %s" % (repo, args.name)
+            return response(resp2, quiet=True)
+        else:
+            return response(resp1, quiet=True)
 
     elif args.subcommand == 'delete-repo':
         if args.org:
@@ -899,8 +916,8 @@ def github_action(args, base_url, headers):
         url = "https://api.github.com/repos/%s/%s" % (owner, args.name)
 
         resp = requests.delete(url, headers=headers)
-        if resp.status_code == requests.codes.ok:
-            logger.info("Github repo %s deleted." % args.name)
+        if resp.status_code == requests.codes.no_content:
+            print "Github repo %s deleted." % args.name
         return response(resp)
 
     elif args.subcommand == "deploy-key":
@@ -925,9 +942,9 @@ def github_action(args, base_url, headers):
             resp = requests.post(url, headers=headers, data=data)
 
             if resp.status_code == requests.codes.created:
-                logger.info("SSH deploy key %s added to Github repo %s." % (
-                            args.keyfile, args.name))
-            return response(resp)
+                print "SSH deploy key %s added to Github repo %s." % (
+                    args.keyfile, args.name)
+            return response(resp, quiet=True)
 
     return False
 
