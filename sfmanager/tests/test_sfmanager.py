@@ -13,12 +13,12 @@
 # under the License.
 
 import argparse
+import base64
 import json
 import os
-from tempfile import mkstemp, NamedTemporaryFile
-
-from unittest import TestCase
 from mock import patch, MagicMock
+from tempfile import mkstemp, NamedTemporaryFile
+from unittest import TestCase
 
 from sfmanager import sfmanager
 
@@ -74,6 +74,14 @@ class TestProjectUserAction(BaseFunctionalTest):
         self.assert_secure('put', args,
                            sfmanager.project_action, expected_url)
 
+    def test_create_project_named_with_namespace(self):
+        args = self.default_args
+        args += 'project create --name ns1/proj1'.split()
+        name = '===' + base64.urlsafe_b64encode('ns1/proj1')
+        expected_url = self.base_url + 'project/%s/' % name
+        self.assert_secure('put', args,
+                           sfmanager.project_action, expected_url)
+
     def test_create_project_with_branches(self):
         cmd = ('project create --name proj2 '
                '--upstream ssh://tests.dom/test.git --add-branches')
@@ -113,27 +121,31 @@ class TestTestsActions(BaseFunctionalTest):
 class TestMembershipAction(BaseFunctionalTest):
     def test_project_add_user_to_groups(self):
         args = self.default_args
-        c = 'membership add --user u --project p --groups dev-group ptl-group'
+        project_name = 'ns2/prj1'
+        c = 'membership add --user u --project %s' % project_name
+        c += ' --groups dev-group ptl-group'
         args += c.split()
-        expected_url = self.base_url + 'project/membership/p/u/'
+        encoded_name = '===' + base64.urlsafe_b64encode(project_name)
+        url = self.base_url + 'project/membership/%s/u/' % encoded_name
         self.assert_secure('put', args,
-                           sfmanager.membership_action, expected_url,
+                           sfmanager.membership_action, url,
                            {'groups': ['dev-group', 'ptl-group']})
 
     def test_project_remove_user_from_all_groups(self):
         args = self.default_args
-        args += 'membership remove --user user1 --project proj1'.split()
-        expected_url = self.base_url + 'project/membership/proj1/user1/'
+        cmd = 'membership remove --user user1 --project ns2/prj1'
+        args += cmd.split()
+        encoded_name = '===' + base64.urlsafe_b64encode('ns2/prj1')
+        url = self.base_url + 'project/membership/%s/user1/' % encoded_name
         self.assert_secure('delete', args, sfmanager.membership_action,
-                           expected_url)
+                           url)
 
     def test_project_remove_user_from_group(self):
         args = self.default_args
         cmd = 'membership remove --user u1 --project proj1 --group dev-group'
         args += cmd.split()
-        expected_url = self.base_url + 'project/membership/proj1/u1/dev-group/'
-        self.assert_secure('delete', args, sfmanager.membership_action,
-                           expected_url)
+        url = self.base_url + 'project/membership/proj1/u1/dev-group/'
+        self.assert_secure('delete', args, sfmanager.membership_action, url)
 
     def test_list_users_per_project(self):
         args = self.default_args

@@ -510,7 +510,11 @@ def membership_action(args, base_url, headers):
         resp = requests.get(url, headers=headers, cookies=auth_cookie)
         return response(resp)
 
-    url = build_url(base_url, 'project/membership', args.project, args.user)
+    if '/' in args.project:
+        project_name = '===' + base64.urlsafe_b64encode(args.project)
+    else:
+        project_name = args.project
+    url = build_url(base_url, 'project/membership', project_name, args.user)
     if args.subcommand == 'add':
         logger.info('Add member %s to project %s', args.user, args.project)
         if args.groups:
@@ -579,7 +583,11 @@ def project_action(args, base_url, headers):
     else:
         return False
 
-    url = build_url(base_url, "project", args.name)
+    if '/' in args.name:
+        name = '===' + base64.urlsafe_b64encode(args.name)
+    else:
+        name = args.name
+    url = build_url(base_url, "project", name)
     if subcommand == 'create':
         if getattr(args, 'core_group'):
             args.core_group = split_and_strip(args.core_group)
