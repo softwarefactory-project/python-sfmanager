@@ -447,12 +447,17 @@ Finally trigger the initial replication
 Done! After a few minutes your commits should appear on the GitHub repository.
 
 
+.. _managesf_backup:
+
 Backup and restore
 ------------------
 
-Backups include data from Gerrit, Jenkins and Mysql. Because Mysql is used as
-the default backend in Redmine, Paste and Etherpad all of this data is also
-included in the backup file.
+Backups include database dumps from Gerrit, Jenkins, Mysql, cauth and managesf
+as well as some important configuration files like Gerrit replication settings,
+SSH keys and Hiera settings. This includes credentials; please see below how to
+store backups encrypted. Because Mysql is used as the default backend in
+Redmine, Paste and Etherpad all of this data is also included in the backup
+file.
 
 Create a new backup
 '''''''''''''''''''
@@ -494,6 +499,35 @@ SF allows you to restore a backup in one of the following way.
 
  sfmanager --url <http://sfgateway.dom> --auth user:password \
            system restore --filename sf_backup.tar.gz
+
+Using GPG to encrypt and decrypt backups
+''''''''''''''''''''''''''''''''''''''''
+
+It is recommended to store the backup files encrypted when using external
+storage services, since the user and administrative credentials are included
+in the backup.
+When using the export_backup_sift.sh shell script included in SF, all backups
+are automatically encrypted using GPG before uploading to Swift. A special
+public GPG key is required for this, and it has to be stored on the SF node.
+To create this key, do the following:
+
+.. code-block:: bash
+
+ gpg --gen-key  # Use "sfadmin" as name when creating the key
+ gpg --export -a sfadmin > sfadmin.pub
+
+You have to copy this public key to the SF node, and import it as root user.
+
+.. code-block:: bash
+
+ scp sfadmin.pub root@sftests.com:.
+ gpg --import sfadmin.pub
+
+If you need to restore from a backup, you need to decrypt the tar.gz file first.
+
+.. code-block:: bash
+
+ gpg sf_backup.tar.gz.gpg
 
 
 Provide a private ssh key to the Gerrit replication plugin
