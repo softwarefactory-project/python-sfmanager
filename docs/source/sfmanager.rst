@@ -506,7 +506,7 @@ Using GPG to encrypt and decrypt backups
 It is recommended to store the backup files encrypted when using external
 storage services, since the user and administrative credentials are included
 in the backup.
-When using the export_backup_sift.sh shell script included in SF, all backups
+When using the export_backup_swift.sh shell script included in SF, all backups
 are automatically encrypted using GPG before uploading to Swift. A special
 public GPG key is required for this, and it has to be stored on the SF node.
 To create this key, do the following:
