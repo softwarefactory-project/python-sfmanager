@@ -303,6 +303,10 @@ To create this key, do the following:
 
  gpg --gen-key  # Use "sfadmin" as name when creating the key
  gpg --export -a sfadmin > sfadmin.pub
+ gpg --export-secret-key -a sfadmin > sfadmin.key
+
+Make sure you copy keep the sfadmin.key in a safe place. For example, if it is
+encrypted using a strong password store it alongside your backup files.
 
 You have to copy this public key to the SF node, and import it as root user.
 
