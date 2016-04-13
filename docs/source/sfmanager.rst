@@ -523,6 +523,13 @@ You have to copy this public key to the SF node, and import it as root user.
  scp sfadmin.pub root@sftests.com:.
  gpg --import sfadmin.pub
 
+Now you have to trust the imported key.
+.. code-block:: bash
+
+ gpg --edit-key sfadmin
+ # Enter "trust"
+ # Choose option 5, then exit
+
 If you need to restore from a backup, you need to decrypt the tar.gz file first.
 
 .. code-block:: bash
