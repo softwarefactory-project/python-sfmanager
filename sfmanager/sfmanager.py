@@ -215,63 +215,9 @@ def system_command(parser):
                          help='The file downloaded from backup_get')
 
 
-def replication_command(parser):
-    def section_args(x, include_value=False):
-        x.add_argument('--section', nargs='?', required=True,
-                       help='section to which this setting belongs to')
-        x.add_argument('name', metavar='name', nargs='?',
-                       help='Setting name. Supported settings - project, url')
-        if include_value:
-            x.add_argument('value', nargs='?', help='Value of the setting')
-
-    root = parser.add_parser('replication', help='System replication commands')
-    sub_cmd = root.add_subparsers(dest='subcommand')
-
-    help_msg = 'Trigger the replication events of a project'
-    trigger = sub_cmd.add_parser('trigger', help=help_msg)
-    trigger.add_argument('--wait', default=False, action='store_true',
-                         help='Place the trigger in a queue')
-    trigger.add_argument('--project', '-p', metavar='project-name')
-    trigger.add_argument('--url', metavar='repo-url',
-                         help='The url of the project')
-
-    config = sub_cmd.add_parser('configure',
-                                help='Configure the replication system')
-    config_sub = config.add_subparsers(dest='rep_command')
-    config_sub.add_parser('list',
-                          help='List of replication variables settings')
-
-    get_all = config_sub.add_parser('get-all',
-                                    help='Get all variables for that setting')
-    section_args(get_all)
-
-    help_msg = 'Replace variable values for all settings'
-    replace_all = config_sub.add_parser('replace-all', help=help_msg)
-    section_args(replace_all, True)
-
-    rename = config_sub.add_parser('rename', help='Rename variable name')
-    section_args(rename, True)
-
-    remove = config_sub.add_parser('remove', help='Remove the variable')
-    section_args(remove)
-
-    add = config_sub.add_parser('add', help='Set new variable')
-    section_args(add, True)
-
-
 def gerrit_api_htpasswd(sp):
     sp.add_parser('generate_password')
     sp.add_parser('delete_password')
-
-
-def gerrit_ssh_config(sp):
-    add_config = sp.add_parser('add')
-    add_config.add_argument('--alias', nargs='?', required=True)
-    add_config.add_argument('--hostname', nargs='?', required=True)
-    add_config.add_argument('--keyfile', nargs='?', required=True)
-
-    delete_config = sp.add_parser('delete')
-    delete_config.add_argument('--alias', nargs='?', required=True)
 
 
 def user_management_command(sp):
@@ -423,19 +369,14 @@ def command_options(parser):
     gerrit_api_commands = sp.add_parser('gerrit_api_htpasswd',
                                         help='Gerrit API access commands')
     gic = gerrit_api_commands.add_subparsers(dest="subcommand")
-    gerrit_ssh_commands = sp.add_parser('gerrit_ssh_config',
-                                        help='Gerrit SSH config commands')
-    gsc = gerrit_ssh_commands.add_subparsers(dest="subcommand")
 
     gerrit_api_htpasswd(gic)
-    gerrit_ssh_config(gsc)
     project_command(spc)
     user_management_command(suc)
 
     # New options
     membership_command(sp)
     system_command(sp)
-    replication_command(sp)
     tests_command(sp)
     pages_command(sp)
     github_command(sp)
@@ -728,137 +669,6 @@ def gerrit_api_htpasswd_action(args, base_url, headers):
     return response(resp, as_text=True)
 
 
-def gerrit_ssh_config_action(args, base_url, headers):
-    url = base_url + '/sshconfig'
-    if args.command not in ['gerrit', 'gerrit_ssh_config']:
-        return False
-    if not getattr(args, 'subcommand', None):
-        return False
-    if args.subcommand not in ['add', 'delete']:
-        return False
-
-    url += '/' + args.alias
-
-    if args.subcommand == 'add':
-        data = {
-            "hostname": args.hostname,
-            "userknownHostsfile": "/dev/null",
-            "preferredauthentications": "publickey",
-            "stricthostkeychecking": "no",
-        }
-
-        with open(args.keyfile) as ssh_key_file:
-            data["identityfile_content"] = ssh_key_file.read()
-        resp = requests.put(url, headers=headers, data=json.dumps(data),
-                            cookies=dict(auth_pubtkt=get_cookie(args)))
-
-    elif args.subcommand == 'delete':
-        resp = requests.delete(url, headers=headers,
-                               cookies=dict(auth_pubtkt=get_cookie(args)))
-
-    return response(resp)
-
-
-def replication_action(args, base_url, headers):
-    if args.command not in ['replication_config', 'trigger_replication',
-                            'replication']:
-        return False
-
-    if args.command in ['replication_config', 'trigger_replication']:
-        logger.info('Deprecated syntax, please use at the replication command')
-        subcommand = args.command
-    else:
-        subcommand = args.subcommand
-
-    if subcommand in ['replication_config', 'configure']:
-        headers['Content-Type'] = 'application/json'
-        settings = ['projects', 'url', 'push', 'receivepack', 'uploadpack',
-                    'timeout', 'replicationDelay', 'threads']
-        url = build_url(base_url, 'replication')
-        params = {'headers': headers,
-                  'cookies': dict(auth_pubtkt=get_cookie(args))}
-
-        # Validate the name argument
-        if args.rep_command not in ('list', 'rename', 'remove'):
-            if getattr(args, 'name') and (args.name not in settings):
-                logger.error("Invalid setting %s" % args.name)
-                die("Valid settings are " + " , ".join(settings))
-
-        if args.rep_command == 'list':
-            resp = requests.get(url, **params)
-            return response(resp)
-
-        if args.rep_command == 'get-all':
-            url = build_url(url, args.section)
-            resp = requests.get(url, **params)
-            return response(resp)
-
-        if args.rep_command == 'rename':
-            url = build_url(url, args.section)
-            params['data'] = json.dumps({'value': args.name})
-            resp = requests.put(url, **params)
-            return response(resp)
-
-        if args.rep_command == 'remove':
-            url = build_url(url, args.section)
-            resp = requests.delete(url, **params)
-            return response(resp)
-
-        if args.rep_command == 'add':
-            url = build_url(url, args.section, args.name)
-            params['data'] = json.dumps({'value': args.value})
-            resp = requests.put(url, **params)
-            return response(resp)
-
-        data = {}
-        if args.rep_command != "list":
-            if getattr(args, 'section'):
-                url = url + '/%s' % args.section
-            else:
-                die("No section provided")
-        if args.rep_command in ('add', 'replace-all', 'rename'):
-            if getattr(args, 'value'):
-                data = {'value': args.value}
-            else:
-                die("No value provided")
-
-        if args.rep_command in {'unset-all', 'replace-all', 'remove'}:
-            meth = requests.delete
-        elif args.rep_command in {'add', 'rename'}:
-            meth = requests.put
-        elif args.rep_command in {'get-all', 'list'}:
-            meth = requests.get
-        resp = meth(url, headers=headers, data=json.dumps(data),
-                    cookies=dict(auth_pubtkt=get_cookie(args)))
-        if args.rep_command == 'replace-all':
-            resp = requests.put(url, headers=headers, data=json.dumps(data),
-                                cookies=dict(auth_pubtkt=get_cookie(args)))
-            # These commands need json as output,
-            # if server has no valid json it will send {}
-            # for other commands print status
-            if args.rep_command in {'get-all', 'list'}:
-                logger.info(resp.json())
-                return True
-        return response(resp)
-
-    elif subcommand in ['trigger_replication', 'trigger']:
-        headers['Content-Type'] = 'application/json'
-        url = build_url(base_url, 'replication')
-        info = {}
-        if args.wait:
-            info['wait'] = 'true'
-        else:
-            info['wait'] = 'false'
-        if getattr(args, 'url'):
-            info['url'] = args.url
-        if getattr(args, 'project'):
-            info['project'] = args.project
-        resp = requests.post(url, headers=headers, data=json.dumps(info),
-                             cookies=dict(auth_pubtkt=get_cookie(args)))
-        return response(resp)
-    return False
-
-
 def github_action(args, base_url, headers):
     if args.subcommand not in ['create-repo', 'delete-repo',
                                'deploy-key', 'fork-repo']:
@@ -1062,9 +872,7 @@ def main():
            project_action(args, base_url, headers) or
            backup_action(args, base_url, headers) or
            gerrit_api_htpasswd_action(args, base_url, headers) or
-           replication_action(args, base_url, headers) or
            user_management_action(args, base_url, headers) or
-           gerrit_ssh_config_action(args, base_url, headers) or
            membership_action(args, base_url, headers) or
            tests_action(args, base_url, headers) or
            pages_action(args, base_url, headers) or

@@ -191,63 +191,6 @@ class TestUserActions(BaseFunctionalTest):
         self.assertRaises(SystemExit, self.parser.parse_args)
 
 
-class TestReplicationActions(BaseFunctionalTest):
-    def test_replication(self):
-        data = {'wait': 'true', 'url': 'git://ex.com', 'project': 'p1'}
-        args = self.default_args
-        args += 'replication trigger --wait -p p1 --url git://ex.com'.split()
-        expected_url = self.base_url + 'replication/'
-        self.assert_secure('post', args,
-                           sfmanager.replication_action, expected_url,
-                           data)
-
-    def test_configure_list(self):
-        args = self.default_args
-        args += 'replication configure list'.split()
-        expected_url = self.base_url + 'replication/'
-        self.assert_secure('get', args,
-                           sfmanager.replication_action, expected_url)
-
-    def test_configure_get_all(self):
-        args = self.default_args
-        args += 'replication configure get-all --section toto'.split()
-        expected_url = self.base_url + 'replication/toto/'
-        self.assert_secure('get', args,
-                           sfmanager.replication_action, expected_url)
-
-    def test_configure_add(self):
-        args = self.default_args
-        x = 'replication configure add --section mysql_config projects config'
-        args += x.split()
-        expected_url = self.base_url + 'replication/mysql_config/projects/'
-        self.assert_secure('put', args,
-                           sfmanager.replication_action, expected_url,
-                           {'value': 'config'})
-
-    def test_configure_remove(self):
-        args = self.default_args
-        args += 'replication configure remove --section BBB'.split()
-        expected_url = self.base_url + 'replication/BBB/'
-        self.assert_secure('delete', args, sfmanager.replication_action,
-                           expected_url)
-
-    def test_rename_section(self):
-        args = self.default_args
-        args += 'replication configure rename --section CCC AAA'.split()
-        expected_url = self.base_url + 'replication/CCC/'
-        self.assert_secure('put', args,
-                           sfmanager.replication_action, expected_url,
-                           {'value': 'AAA'})
-
-    def test_replace_all(self):
-        return
-        args = self.default_args
-        args += 'replication configure replace-all --section B url DD'.split()
-        expected_url = self.base_url + '/replication/B/url/'
-        self.assert_secure('delete', args, sfmanager.replication_action,
-                           expected_url, {})
-
-
 class TestSystemActions(BaseFunctionalTest):
     def test_backup(self):
         args = self.default_args
