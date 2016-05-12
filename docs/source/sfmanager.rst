@@ -8,8 +8,8 @@
 
 .. toctree::
 
-sfmanager
-=========
+CLI for Software Factory
+========================
 
 This documentation describes the shell utility **sfmanager**, which is a CLI for
 the managesf REST API interface in Software Factory. It can be used to
@@ -241,212 +241,6 @@ only prevents the user from login in to Software Factory.
            user delete --username jdoe
 
 
-Remote replication mangement
-----------------------------
-
-Gerrit can be configured to push merged changes to another git repository.  This
-can be used to mirror changes on a public available repository, for example on
-Github or to keep another copy as a backup.
-
-Details about the configuration within Gerrit itself can be found online:
-https://gerrit.googlesource.com/gerrit/+/stable-2.4/Documentation/config-replication.txt
-
-
-Add a replication config setting
-''''''''''''''''''''''''''''''''
-
-The minimum requirement is to set a remote git url. Every replication target
-requires it's own section within Gerrits configuration file, thus you need to
-set a sectionname for each replication target.
-
-There are a few settings you can use in a replication configuration section:
-
-url 'gerrit@$hostname:/path/git/${name}.git'
-    Set the remote url. The variable "${name}" will be replaced by the
-    projectname and can be used if multiple projects will be replicated by this
-    configuration.
-    Can be specified multiple times to replicate to several hosts. In this case
-    the option "threads" might be used to configure Gerrit to replicate in
-    parallel.
-
-projects project1,project2
-    Limits the replication to the previously defined url to projects "project1,
-    project2". Note that there is no space between the project names.
-
-push "+refs/heads/*:refs/heads/*"
-    refspec denoting what should be replicated. Can be specified multiple times.
-
-Further valid setting names are: **receivepack**, **uploadpack**, **timeout**, **replicationDelay**, **threads**.
-
-Example:
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           replication configure add --section sectionname \
-           url 'gerrit@$hostname:/path/git/${name}.git'
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           replication configure add --section sectionname projects projectname
-
-
-Trigger replication manually
-''''''''''''''''''''''''''''
-
-Replication is triggered automatically by default, though Gerrit delays this a
-little bit (15 seconds by default) to batch multiple commits into a single push operation.
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           replication trigger --project config
-
-
-List existing replication configs and settings
-''''''''''''''''''''''''''''''''''''''''''''''
-
-Existing replication configuration can be shown using the two commands **list**
-and **get-all**. The first command lists all configured replications that the user
-has access to, the second command lists only settings from a specific
-configuration section and can be filtered to a single setting too.
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           replication configure list
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           replication get-all --section sectionname
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           replication get-all --section sectionname url
-
-
-Delete replication config
-'''''''''''''''''''''''''
-
-Deleting a replication target only stops replicating data to this target. It
-does not remove data on the remote side.
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           replication remove-section sectionname
-
-Modify existing settings
-''''''''''''''''''''''''
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           replication configure replace-all --section sectionname projects project1,project3
-
-
-Using SSH keys to authenticate replication
-''''''''''''''''''''''''''''''''''''''''''
-
-Gerrit reads ~/.ssh/config on startup and uses defined configuration settings
-when connecting to remote replication targets. Authentication is done using SSH
-keys, thus they need to be defined first.
-Some replication sites don't allow to re-use a single SSH key for authentication
-with different repositories, for example Github. In that case you can define
-multiple different SSH keys, and instead of directly using a hostname you only
-define an alias for the "Host" value. The SSH keys have to be copied to the
-Gerrit node in advance.
-
-An example setting for an alias host might look like this:
-
-.. code-block:: none
-
- Host alias_gh_firstrepo
-    Hostname github.com
-    IdentityFile ~/.ssh/gh_firstrepo
-    PreferredAuthentications publickey
-
- Host alias_gh_secondrepo
-    Hostname github.com
-    IdentityFile ~/.ssh/gh_secondrepo
-    PreferredAuthentications publickey
-
-The corresponding Gerrit replication can be created using the following URLs:
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           replication configure add --section firstrepo url 'git@alias_gh_firstrepo:accountname/${name}.git'
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           replication configure add --section firstrepo projects projectname1
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           replication configure add --section secondrepo url 'git@alias_gh_secondrepo:accountname/${name}.git'
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           replication configure add --section secondrepo projects projectname2
-
-
-You can use sfmanager also to add or remove SSH keys to Gerrit. For example.
-
-.. code-block:: bash
-
- ssh-keygen -N "" -f private_ssh.key
-
- sfmanager --url <http://sfgateway.dom> \
-     --auth user1:userpass \
-     gerrit_ssh_config add --alias aliasname --key private_ssh.key --hostname sample.github.com
-
- sfmanager --url <http://sfgateway.dom> \
-     --auth user1:userpass \
-     gerrit_ssh_config delete --alias sample
-
-
-A complete example using GitHub
-'''''''''''''''''''''''''''''''
-The following commands show a complete example how to create a simple new
-project and add a SSH-key based authentication for replication to GitHub. Create
-a new public/private SSH key and add the content of the file private_ssh.key.pub
-to your GitHub repository (in settings / Deploy keys; don't forget to enable
-write access)
-
-.. code-block:: bash
-
- ssh-keygen -N "" -f private_ssh.key
-
-Create a new project if required
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> \
-     --auth user1:userpass \
-     project create --name testrepo
-
-Now add the replication config and SSH keys
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> \
-     --auth user1:userpass \
-     replication configure add --section testrepo url 'git@alias_gh_firstrepo:username/${name}.git'
-
- sfmanager --url <http://sfgateway.dom> \
-     --auth user1:userpass \
-     replication configure add --section testrepo projects testrepo
-
- sfmanager --url <http://sfgateway.dom> \
-     --auth user1:userpass \
-     gerrit_ssh_config add --alias alias_gh_firstrepo --key private_ssh.key --hostname github.com
-
-Finally trigger the initial replication
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> \
-     --auth user1:userpass \
-     replication trigger
-
-Done! After a few minutes your commits should appear on the GitHub repository.
-
-
 .. _managesf_backup:
 
 Backup and restore
@@ -537,8 +331,8 @@ If you need to restore from a backup, you need to decrypt the tar.gz file first.
  gpg sf_backup.tar.gz.gpg
 
 
-Provide a private ssh key to the Gerrit replication plugin
-----------------------------------------------------------
+Request a password to access the Gerrit API
+-------------------------------------------
 
 To request a random password to access the Gerrit API for the current user. This
 is useful for using tools like  `gertty <https://github.com/stackforge/gertty>`_ .
@@ -554,26 +348,6 @@ and to deactivates the password from Gerrit.
 
  sfmanager --url <http://sfgateway.dom> --auth user:password \
                 gerrit_api_htpasswd delete_password
-
-
-Configuring Gerrit ssh key
---------------------------
-
-To provide private ssh keys to Gerrit's replication plugin.
-`A complete example using GitHub replication in Software Factory </docs/deploy.html#setup-replication-to-github>`_
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-                gerrit_ssh_config add --hostname git_hub.com/user/prj1 \
-                --alias prj1 --keyfile ssh-public-key-path
-
-and to remove the ssh key.
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-                gerrit_ssh_config delete --alias prj1
 
 
 Initiate the test pipeline

@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "SFMANAGER" "1" "June 22, 2015" "0.3.1" "managesf"
+.TH "SFMANAGER" "1" "May 12, 2016" "0.1" "sfmanager (SF client)"
 .SH NAME
 sfmanager \- sfmanager Documentation
 .
@@ -41,14 +41,12 @@ By default all actions require authentication as well as some information about
 the remote servers.
 .INDENT 0.0
 .TP
-.BI \-\-url \ <http://sfgateway.dom>
+.B \-\-url <\fI\%http://sfgateway.dom\fP>
 URL of the managesf instance
-.UNINDENT
-.INDENT 0.0
 .TP
 .B \-\-auth user:password
-Username and password to use when accessing the managesf interface. This
-option is only valid if it is a local user within Software Factory
+Username and password to use when accessing the managesf interface.
+This option is only valid if it is a local user within Software Factory
 .UNINDENT
 .sp
 There are a few optional arguments as well:
@@ -117,13 +115,9 @@ An optional description of the project.
 .TP
 .B \-\-upstream [GIT link], \-u [GIT link]
 Uses the given repository to initalize the project, for example to reuse an existing Github repository
-.UNINDENT
-.INDENT 0.0
 .TP
-.BI \-\-upstream\-ssh\-key \ upstream\-ssh\-key
+.B \-\-upstream\-ssh\-key upstream\-ssh\-key
 SSH key for upstream repository if authentication is required
-.UNINDENT
-.INDENT 0.0
 .TP
 .B \-\-core\-group [core\-group\-members], \-c [core\-group\-members]
 A list of comma\-separated member ids that are setup as core reviewers. Core
@@ -137,8 +131,6 @@ Technical Lead). The members can give core permissions to other users.
 .B \-\-dev\-group [dev\-group\-members], \-e [dev\-group\-members]
 A list of comma\-separated member ids that are setup as developers of this
 project. Only required if a project is marked private.
-.UNINDENT
-.INDENT 0.0
 .TP
 .B \-\-private
 Mark project as private. In that case only members of the dev, core or ptl
@@ -179,6 +171,22 @@ projectname\-core and projectname\-dev
 Group of developers, required when project is private. Members can not add
 any other user to any group.
 .UNINDENT
+.SS List project users
+.sp
+Currently only lists all known users. This command is useful for the "add"
+subcommand of the membership command or for \fI\-\-ptl\-group\fP, \fI\-\-core\-group\fP,
+\fI\-\-dev\-group\fP of the project create options.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+          membership list
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
 .SS Add user to project groups
 .INDENT 0.0
 .INDENT 3.5
@@ -186,21 +194,8 @@ any other user to any group.
 .nf
 .ft C
 sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          project add_user \-\-name user1 \-\-groups p1\-ptl,p1\-core
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SS List project users
-.sp
-Currently only lists all known users.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          project list_user
+          membership add \-\-user user1@tests.dom \-\-project p1 \e
+          \-\-groups ptl\-group core\-group
 .ft P
 .fi
 .UNINDENT
@@ -212,7 +207,8 @@ sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
 .nf
 .ft C
 sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          project delete_user \-\-name user1 \-\-group p1\-ptl
+          membership remove \-\-user user1@tests.dom \-\-project p1 \e
+          \-\-group ptl\-group
 .ft P
 .fi
 .UNINDENT
@@ -226,7 +222,7 @@ will remove the user from all groups associated to a project.
 .nf
 .ft C
 sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          project delete_user \-\-name user1
+          membership remove \-\-user user1@tests.dom \-\-project p1
 .ft P
 .fi
 .UNINDENT
@@ -261,7 +257,8 @@ The user\(aqs ssh public key file
 .nf
 .ft C
 sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          user create \-\-username jdoe \-\-password secret \-\-email jane@doe.org
+          user create \-\-username jdoe \-\-password secret \-\-fullname "User Tester" \e
+               \-\-email jane@doe.org
 .ft P
 .fi
 .UNINDENT
@@ -270,6 +267,8 @@ sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
 .sp
 Update an existing local user. A user can update it\(aqs own details, and admins
 can also update other user details. Takes the same arguments as user create.
+The options \fI\-\-fullname\fP and \fI\-\-ssh\-key\fP (if updated) won\(aqt be taken in account
+inside SF services. Only the password can be updated.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -282,6 +281,9 @@ sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
 .UNINDENT
 .UNINDENT
 .SS Delete user
+.sp
+Disable the user\(aqs account. That does not prevent the user from contributing, it
+only prevents the user from login in to Software Factory.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -293,180 +295,14 @@ sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
 .fi
 .UNINDENT
 .UNINDENT
-.SH REMOTE REPLICATION MANGEMENT
-.sp
-Gerrit can be configured to push merged changes to another git repository.  This
-can be used to mirror changes on a public available repository, for example on
-Github or to keep another copy as a backup.
-.sp
-Details about the configuration within Gerrit itself can be found online:
-\fI\%https://gerrit.googlesource.com/gerrit/+/stable\-2.4/Documentation/config\-replication.txt\fP
-.SS Add a replication config setting
-.sp
-The minimum requirement is to set a remote git url. Every replication target
-requires it\(aqs own section within Gerrits configuration file, thus you need to
-set a sectionname for each replication target.
-.sp
-There are a few settings you can use in a replication configuration section:
-.INDENT 0.0
-.TP
-.B url \fI\%\(aqgerrit@$hostname\fP:/path/git/${name}.git\(aq
-Set the remote url. The variable "${name}" will be replaced by the
-projectname and can be used if multiple projects will be replicated by this
-configuration.
-Can be specified multiple times to replicate to several hosts. In this case
-the option "threads" might be used to configure Gerrit to replicate in
-parallel.
-.TP
-.B projects project1,project2
-Limits the replication to the previously defined url to projects "project1,
-project2". Note that there is no space between the project names.
-.TP
-.B push "+refs/heads/\fI:refs/heads/\fP"
-refspec denoting what should be replicated. Can be specified multiple times.
-.UNINDENT
-.sp
-Further valid setting names are: \fBreceivepack\fP, \fBuploadpack\fP, \fBtimeout\fP, \fBreplicationDelay\fP, \fBthreads\fP\&.
-.sp
-Example:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          replication_config add \-\-section sectionname url \(aqgerrit@$hostname:/path/git/${name}.git\(aq
-
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          replication_config add \-\-section sectionname projects projectname
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SS Trigger replication manually
-.sp
-Replication is triggered automatically by default, though Gerrit delays this a
-little bit (15 seconds by default) to batch multiple commits into a single push operation.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          trigger_replication \-\-project config
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SS List existing replication configs and settings
-.sp
-Existing replication configuration can be shown using the two commands \fBlist\fP
-and \fBget\-all\fP\&. The first command lists all configured replications that the user
-has access to, the second command lists only settings from a specific
-configuration section and can be filtered to a single setting too.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          replication_config list
-
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          get\-all \-\-section sectionname
-
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          get\-all \-\-section sectionname url
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SS Delete replication config
-.sp
-Deleting a replication target only stops replicating data to this target. It
-does not remove data on the remote side.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          remove\-section sectionname
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SS Modify existing settings
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          replication_config replace\-all \-\-section sectionname projects project1,project3
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SS Using SSH keys to authenticate replication
-.sp
-Gerrit reads ~/.ssh/config on startup and uses defined configuration settings
-when connecting to remote replication targets. Authentication is done using SSH
-keys, thus they need to be defined first.
-Some replication sites don\(aqt allow to re\-use a single SSH key for authentication
-with different repositories, for example Github. In that case you can define
-multiple different SSH keys, and instead of directly using a hostname you only
-define an alias for the "Host" value. The SSH keys have to be created on the
-Gerrit node or need to be copied there.
-.sp
-An example setting for an alias host might look like this:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-Host alias_gh_firstrepo
-   Hostname github.com
-   User remoteuser
-   IdentityFile ~/.ssh/gh_firstrepo
-   PreferredAuthentications publickey
-
-Host alias_gh_secondrepo
-   Hostname github.com
-   User remoteuser
-   IdentityFile ~/.ssh/gh_secondrepo
-   PreferredAuthentications publickey
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-The corresponding Gerrit replication can be created using the following URLs:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          replication_config add \-\-section firstrepo url \(aqgit@alias_gh_firstrepo:accountname/${name}.git\(aq
-
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          replication_config add \-\-section firstrepo projects projectname1
-
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          replication_config add \-\-section secondrepo url \(aqgit@alias_gh_secondrepo:accountname/${name}.git\(aq
-
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          replication_config add \-\-section secondrepo projects projectname2
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
 .SH BACKUP AND RESTORE
 .sp
-Backups include data from Gerrit, Jenkins and Mysql. Because Mysql is used as
-the default backend in Redmine, Paste and Etherpad all of this data is also
-included in the backup file.
+Backups include database dumps from Gerrit, Jenkins, Mysql, cauth and managesf
+as well as some important configuration files like Gerrit replication settings,
+SSH keys and Hiera settings. This includes credentials; please see below how to
+store backups encrypted. Because Mysql is used as the default backend in
+Redmine, Paste and Etherpad all of this data is also included in the backup
+file.
 .SS Create a new backup
 .sp
 SF exposes ways to perform and retrieve a backup of all the user data store in
@@ -480,7 +316,21 @@ Only the SF administrator can perform and retrieve a backup.
 .nf
 .ft C
 sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          backup_get
+          system backup_start
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Once the server generated the tar file of the backup you can then download it with
+the following command
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+          system backup_get
 .ft P
 .fi
 .UNINDENT
@@ -502,7 +352,108 @@ SF allows you to restore a backup in one of the following way.
 .nf
 .ft C
 sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          restore \-\-filename sf_backup.tar.gz
+          system restore \-\-filename sf_backup.tar.gz
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Using GPG to encrypt and decrypt backups
+.sp
+It is recommended to store the backup files encrypted when using external
+storage services, since the user and administrative credentials are included
+in the backup.
+When using the export_backup_swift.sh shell script included in SF, all backups
+are automatically encrypted using GPG before uploading to Swift. A special
+public GPG key is required for this, and it has to be stored on the SF node.
+To create this key, do the following:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+gpg \-\-gen\-key  # Use "sfadmin" as name when creating the key
+gpg \-\-export \-a sfadmin > sfadmin.pub
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+You have to copy this public key to the SF node, and import it as root user.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+scp sfadmin.pub root@sftests.com:.
+gpg \-\-import sfadmin.pub
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Now you have to trust the imported key.
+.. code\-block:: bash
+.INDENT 0.0
+.INDENT 3.5
+gpg \-\-edit\-key sfadmin
+# Enter "trust"
+# Choose option 5, then exit
+.UNINDENT
+.UNINDENT
+.sp
+If you need to restore from a backup, you need to decrypt the tar.gz file first.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+gpg sf_backup.tar.gz.gpg
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH REQUEST A PASSWORD TO ACCESS THE GERRIT API
+.sp
+To request a random password to access the Gerrit API for the current user. This
+is useful for using tools like  \fI\%gertty\fP .
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+               gerrit_api_htpasswd generate_password
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+and to deactivates the password from Gerrit.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+               gerrit_api_htpasswd delete_password
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH INITIATE THE TEST PIPELINE
+.sp
+Once you create a project, you can initiate the project\(aqs tests into Software
+Factory\(aqs pipeline. The result is a entry into the Software Factory\(aqs
+configuration repository that will require review. It will also create
+placeholder scripts in your project. To skip the generation of the placeholder
+just add \fI\-\-no\-scripts\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+               tests init \-\-project prj1
 .ft P
 .fi
 .UNINDENT
