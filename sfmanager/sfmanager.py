@@ -215,13 +215,12 @@ def system_command(parser):
                          help='The file downloaded from backup_get')
 
 
-def gerrit_api_htpasswd(sp):
-    sp.add_parser('generate_password')
-    sp.add_parser('delete_password')
+def user_management_command(parser):
+    uc = parser.add_parser('user',
+                           help='project users-related commands')
+    suc = uc.add_subparsers(dest="subcommand")
 
-
-def user_management_command(sp):
-    cump = sp.add_parser('create', help='Create user. Admin rights required')
+    cump = suc.add_parser('create', help='Create user. Admin rights required')
     cump.add_argument('--username', '-u', nargs='?', metavar='username',
                       required=True, help='A unique username/login')
     cump.add_argument('--password', '-p', nargs='?', metavar='password',
@@ -235,9 +234,9 @@ def user_management_command(sp):
                       required=True)
     cump.add_argument('--ssh-key', '-s', nargs='?', metavar='/path/to/pub_key',
                       required=False, help="The user's ssh public key file")
-    uump = sp.add_parser('update', help='Update user details. Admin can update'
-                         ' details of all users. User can update its own'
-                         ' details.')
+    uump = suc.add_parser('update', help='Update user details. Admin can'
+                          ' update details of all users. User can update its'
+                          ' own details.')
     uump.add_argument('--username', '-u', nargs='?', metavar='username',
                       required=True,
                       help='the user to update, defaults to current user')
@@ -251,7 +250,7 @@ def user_management_command(sp):
                       required=False, help="The user's full name")
     uump.add_argument('--ssh-key', '-s', nargs='?', metavar='/path/to/pub_key',
                       required=False, help="The user's ssh public key file")
-    dump = sp.add_parser('delete', help='Delete user. Admin rights required')
+    dump = suc.add_parser('delete', help='Delete user. Admin rights required')
     dump.add_argument('--username', '-u', nargs='?', metavar='username',
                       required=True, help='the user to delete')
 
@@ -282,7 +281,10 @@ def pages_command(topparser):
 
 
 def project_command(sp):
-    cp = sp.add_parser('create')
+    pc = sp.add_parser('project',
+                       help='project-related commands')
+    spc = pc.add_subparsers(dest="subcommand")
+    cp = spc.add_parser('create')
     cp.add_argument('--name', '-n', nargs='?', metavar='project-name',
                     required=True)
     cp.add_argument('--description', '-d', nargs='?',
@@ -307,7 +309,7 @@ def project_command(sp):
                     help='include all upstream git branches to the project'
                     ' repository')
 
-    dp = sp.add_parser('delete')
+    dp = spc.add_parser('delete')
     dp.add_argument('--name', '-n', nargs='?', metavar='project-name',
                     required=True)
 
@@ -358,23 +360,25 @@ def github_command(parser):
         '--org', '-o', nargs='?', metavar='organization')
 
 
+def gerrit_api_htpassword_command(parser):
+    gah = parser.add_parser('gerrit_api_htpasswd',
+                            help='Gerrit API access commands')
+
+    sub_cmd = gah.add_subparsers(dest='subcommand')
+
+    sub_cmd.add_parser('generate_password',
+                       help='Generate a personal Gerrit API'
+                            ' access htpassword')
+    sub_cmd.add_parser('delete_password',
+                       help='Delete my personal Gerrit API'
+                            ' access htpassword')
+
+
 def command_options(parser):
     sp = parser.add_subparsers(dest="command")
-    project_commands = sp.add_parser('project',
-                                     help='project-related commands')
-    spc = project_commands.add_subparsers(dest="subcommand")
-    user_commands = sp.add_parser('user',
-                                  help='project users-related commands')
-    suc = user_commands.add_subparsers(dest="subcommand")
-    gerrit_api_commands = sp.add_parser('gerrit_api_htpasswd',
-                                        help='Gerrit API access commands')
-    gic = gerrit_api_commands.add_subparsers(dest="subcommand")
-
-    gerrit_api_htpasswd(gic)
-    project_command(spc)
-    user_management_command(suc)
-
-    # New options
+    project_command(sp)
+    user_management_command(sp)
+    gerrit_api_htpassword_command(sp)
     membership_command(sp)
     system_command(sp)
     tests_command(sp)
@@ -475,74 +479,19 @@ def membership_action(args, base_url, headers):
     return False
 
 
-def project_user_action(args, base_url, headers):
-    if args.command in ['add_user', 'delete_user', 'list_active_users']:
-        subcommand = args.command
-        logger.info("Deprecated syntax, "
-                    "please use project %s ..." % subcommand)
-    elif args.command == 'project':
-        subcommand = args.subcommand
-    else:
-        return False
-
-    if subcommand in ['add_user', 'delete_user']:
-        url = "{}/project/membership/{}/{}/".format(base_url, args.name,
-                                                    args.user)
-    elif subcommand == 'list_active_users':
-        url = base_url + '/project/membership/'
-    if subcommand == 'add_user':
-        groups = split_and_strip(args.groups)
-        data = json.dumps({'groups': groups})
-        resp = requests.put(url, headers=headers, data=data,
-                            cookies=dict(auth_pubtkt=get_cookie(args)))
-
-    elif subcommand == 'delete_user':
-        # if a group name is provided, delete user from that group,
-        # otherwise delete user from all groups
-        if args.group:
-            url = url + args.group
-        resp = requests.delete(url, headers=headers,
-                               cookies=dict(auth_pubtkt=get_cookie(args)))
-
-    elif subcommand == 'list_active_users':
-        resp = requests.get(url, headers=headers,
-                            cookies=dict(auth_pubtkt=get_cookie(args)))
-
-    else:
-        return False
-
-    return response(resp)
-
-
 def project_action(args, base_url, headers):
-    if args.command in ['delete', 'create']:
-        subcommand = args.command
-        logger.info("Deprecated syntax, "
-                    "please use project %s ..." % subcommand)
-    elif args.command == 'project':
-        subcommand = args.subcommand
-    else:
+    if args.command != 'project':
         return False
-
     if '/' in args.name:
         name = '===' + base64.urlsafe_b64encode(args.name)
     else:
         name = args.name
     url = build_url(base_url, "project", name)
-    if subcommand == 'create':
-        if getattr(args, 'core_group'):
-            args.core_group = split_and_strip(args.core_group)
-        if getattr(args, 'ptl_group'):
-            args.ptl_group = split_and_strip(args.ptl_group)
-        if getattr(args, 'dev_group'):
-            args.dev_group = split_and_strip(args.dev_group)
+    if args.subcommand == 'create':
         if getattr(args, 'upstream_ssh_key'):
             with open(args.upstream_ssh_key) as ssh_key_file:
                 args.upstream_ssh_key = ssh_key_file.read()
         substitute = {'description': 'description',
-                      'core_group': 'core-group-members',
-                      'ptl_group': 'ptl-group-members',
-                      'dev_group': 'dev-group-members',
                       'upstream': 'upstream',
                       'upstream_ssh_key': 'upstream-ssh-key',
                       'private': 'private',
@@ -561,7 +510,7 @@ def project_action(args, base_url, headers):
 
         resp = requests.put(url, **params)
 
-    elif subcommand == 'delete':
+    elif args.subcommand == 'delete':
         resp = requests.delete(url, headers=headers,
                                cookies=dict(auth_pubtkt=get_cookie(args)))
     else:
@@ -611,20 +560,13 @@ def pages_action(args, base_url, headers):
 
 
 def backup_action(args, base_url, headers):
-    if args.command not in ['system', 'backup_get', 'backup_start',
-                            'restore']:
+    if args.command != 'system':
         return False
-
-    if args.command in ['backup_get', 'backup_start', 'restore']:
-        logger.info('Depreacated syntax: Please use the system command')
-        subcommand = args.command
-    else:
-        subcommand = args.subcommand
 
     url = build_url(base_url, 'backup')
     params = {'headers': headers,
               'cookies': dict(auth_pubtkt=get_cookie(args))}
-    if subcommand == 'backup_get':
+    if args.subcommand == 'backup_get':
         resp = requests.get(url, **params)
         if resp.status_code != 200:
             die("backup_get failed with status_code " + str(resp.status_code))
@@ -634,11 +576,11 @@ def backup_action(args, base_url, headers):
                 fd.write(chunk)
         return True
 
-    elif subcommand == 'backup_start':
+    elif args.subcommand == 'backup_start':
         resp = requests.post(url, **params)
         return response(resp)
 
-    elif subcommand == 'restore':
+    elif args.subcommand == 'restore':
         url = build_url(base_url, 'restore')
         filename = args.filename
         if not os.path.isfile(filename):
@@ -653,20 +595,21 @@ def backup_action(args, base_url, headers):
 
 def gerrit_api_htpasswd_action(args, base_url, headers):
     url = base_url + '/htpasswd'
-    if not getattr(args, 'subcommand', None):
+    if args.command != 'gerrit_api_htpasswd':
         return False
+
     if args.subcommand not in ['generate_password', 'delete_password']:
         return False
 
     if args.subcommand == 'generate_password':
         resp = requests.put(url, headers=headers,
                             cookies=dict(auth_pubtkt=get_cookie(args)))
+        return response(resp, as_text=True)
 
     elif args.subcommand == 'delete_password':
         resp = requests.delete(url, headers=headers,
                                cookies=dict(auth_pubtkt=get_cookie(args)))
-
-    return response(resp, as_text=True)
+        return response(resp, quiet=True)
 
 
 def github_action(args, base_url, headers):
@@ -800,8 +743,8 @@ def user_management_action(args, base_url, headers):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Tool to manage software"
-                                     " factory projects")
+    parser = argparse.ArgumentParser(
+        description="Software Factory CLI")
     default_arguments(parser)
     command_options(parser)
     args = parser.parse_args()
@@ -868,8 +811,7 @@ def main():
     if args.insecure:
         import urllib3
         urllib3.disable_warnings()
-    if not(project_user_action(args, base_url, headers) or
-           project_action(args, base_url, headers) or
+    if not(project_action(args, base_url, headers) or
            backup_action(args, base_url, headers) or
            gerrit_api_htpasswd_action(args, base_url, headers) or
            user_management_action(args, base_url, headers) or

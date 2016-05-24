@@ -44,7 +44,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'sfmanager (SF client)'
-copyright = u'2015, Red Hat'
+copyright = u'2015, 2016 Red Hat'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

@@ -72,7 +72,9 @@ SF exposes ways to create and initialize projects in Redmine and Gerrit
 simultaneously. Initializing a project involves setting up the ACL and
 initializing the source repository.
 
-Any user that can authenticate against SF will be able to create a project.
+By default only the SF administrator will be able to create a project.
+This can be unlock in the Software Factory configuration (sfconfig.yaml) to
+open the project creation feature to every registered users.
 
 .. code-block:: bash
 
@@ -91,22 +93,14 @@ project.
 \--upstream-ssh-key upstream-ssh-key
     SSH key for upstream repository if authentication is required
 
-\--core-group [core-group-members], -c [core-group-members]
-    A list of comma-separated member ids that are setup as core reviewers. Core
-    reviewers can approve or block patches; by default a review from at least
-    one core is required to merge a patch.
-
-\--ptl-group [ptl-group-members], -p [ptl-group-members]
-    A list of comma-separated member ids that are setup as PTLs (Project
-    Technical Lead). The members can give core permissions to other users.
-
-\--dev-group [dev-group-members], -e [dev-group-members]
-    A list of comma-separated member ids that are setup as developers of this
-    project. Only required if a project is marked private.
-
 \--private
     Mark project as private. In that case only members of the dev, core or ptl
     group are allowed to access the project.
+
+\--readonly
+    Set specific ALCs to that project to forbid patch merging. This is
+    a specific option to create a project that suppose to be a mirror
+    of another one and where you just want to store patches (eg. for packaging).
 
 Delete Project
 ''''''''''''''

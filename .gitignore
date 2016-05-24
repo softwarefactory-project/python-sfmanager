@@ -8,3 +8,4 @@ sfmanager.log
 build
 tmp_backup
 .doctrees
+.venv
