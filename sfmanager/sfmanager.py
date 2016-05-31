@@ -196,7 +196,6 @@ def membership_command(parser):
     remove.add_argument('--group', metavar='[core-group|dev-group|ptl-group]',
                         help="The project's group(s)",
                         choices=['core-group', 'dev-group', 'ptl-group'])
-
     sub_cmd.add_parser('list',
                        help='Print a list of active users in Software Factory')
 
@@ -253,6 +252,27 @@ def user_management_command(parser):
     dump = suc.add_parser('delete', help='Delete user. Admin rights required')
     dump.add_argument('--username', '-u', nargs='?', metavar='username',
                       required=True, help='the user to delete')
+
+
+def sf_user_management_command(parser):
+    sfu = parser.add_parser('sf_user',
+                            help='manage registered users on Software Factory')
+    sfu_sub = sfu.add_subparsers(dest='subcommand')
+    create = sfu_sub.add_parser('create', help='register a user on SF')
+    create.add_argument('--username', '-u', nargs='?', metavar='username',
+                        required=True, help='A unique username/login')
+    create.add_argument('--fullname', '-f', nargs='+', metavar='John Doe',
+                        required=True, help="The user's full name")
+    create.add_argument('--email', '-e', nargs='?', metavar='email',
+                        required=True, help="The user's email")
+    sfu_sub.add_parser('list', help='list all registered users')
+    delete = sfu_sub.add_parser('delete', help='de-register a user from SF')
+    delete.add_argument('--username', '-u', nargs='?', metavar='username',
+                        required=False, help=('the username '
+                                              '(use either this or email)'))
+    delete.add_argument('--email', '-e', nargs='?', metavar='email',
+                        required=False, help=("the user's email (use "
+                                              "either this or username)"))
 
 
 def pages_command(topparser):
@@ -378,6 +398,7 @@ def command_options(parser):
     sp = parser.add_subparsers(dest="command")
     project_command(sp)
     user_management_command(sp)
+    sf_user_management_command(sp)
     gerrit_api_htpassword_command(sp)
     membership_command(sp)
     system_command(sp)
@@ -742,6 +763,33 @@ def user_management_action(args, base_url, headers):
     return response(resp)
 
 
+def services_users_management_action(args, base_url, headers):
+    if args.command != 'sf_user':
+        return False
+    if args.subcommand not in ['create', 'list', 'delete']:
+        return False
+    url = build_url(base_url, 'services_users')
+    if args.subcommand in ['create', 'delete']:
+        headers['Content-Type'] = 'application/json'
+        info = {}
+        if getattr(args, 'email', None):
+            info['email'] = args.email
+        if getattr(args, 'username', None):
+                info['username'] = args.username
+        if getattr(args, 'fullname', None):
+            info['full_name'] = ' '.join(args.fullname)
+    if args.subcommand == 'create':
+        resp = requests.post(url, headers=headers, data=json.dumps(info),
+                             cookies=dict(auth_pubtkt=get_cookie(args)))
+    elif args.subcommand == 'delete':
+        resp = requests.delete(url, headers=headers, data=json.dumps(info),
+                               cookies=dict(auth_pubtkt=get_cookie(args)))
+    elif args.subcommand == 'list':
+        resp = requests.get(url, headers=headers,
+                            cookies=dict(auth_pubtkt=get_cookie(args)))
+    return response(resp)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Software Factory CLI")
@@ -818,7 +866,8 @@ def main():
            membership_action(args, base_url, headers) or
            tests_action(args, base_url, headers) or
            pages_action(args, base_url, headers) or
-           github_action(args, base_url, headers)):
+           github_action(args, base_url, headers) or
+           services_users_management_action(args, base_url, headers)):
         die("ManageSF failed to execute your command")
 
 if __name__ == '__main__':

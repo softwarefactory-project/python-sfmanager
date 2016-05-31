@@ -289,6 +289,72 @@ sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
 .fi
 .UNINDENT
 .UNINDENT
+.SH REGISTERED USERS MANAGEMENT
+.sp
+These commands manage the global users. Please note that these commands do not
+modify users on Software Factory\(aqs local authentication backend.
+.SS Register user
+.sp
+Registers the user with all the services. The typical use
+case is to provision a user before his or her first login on Software Factory,
+so that project memberships can be set ahead of time.
+.INDENT 0.0
+.TP
+.B \-\-username [username], \-u [username]
+A unique username/login
+.TP
+.B \-\-email [email], \-e [email]
+The user email
+.TP
+.B \-\-fullname [John Doe], \-f [John Doe]
+The user\(aqs full name, defaults to username
+.TP
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+          sf_user create \-\-username jdoe \-\-fullname "User Tester" \e
+               \-\-email jane@doe.org
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Deregister user
+.sp
+This command removes the user from all the services. It does not delete a user
+from the local authentication backend; the user can also register again simply
+by logging into Software Factory. The typical use case is when a user experiences
+a problem with external authentication, removing the user from the services and
+relogging might be a solution.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+          sf_user delete \-\-username jdoe
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS List registered user
+.sp
+This command lists all the users currently registered (ie who have logged in at
+least once) on Software Factory.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+          sf_user list
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
 .SH BACKUP AND RESTORE
 .sp
 Backups include database dumps from Gerrit, Jenkins, Mysql, cauth and managesf

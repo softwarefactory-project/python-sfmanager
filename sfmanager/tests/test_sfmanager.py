@@ -191,6 +191,46 @@ class TestUserActions(BaseFunctionalTest):
         self.assertRaises(SystemExit, self.parser.parse_args)
 
 
+class TestRegisteredUserActions(BaseFunctionalTest):
+    def test_user_create(self):
+        args = self.default_args
+        data = {'email': 'e@test.com',
+                'full_name': 'toto the tester',
+                'username': 'toto'}
+        cmd = 'sf_user create -f {full_name} -u {username} --email {email}'
+        args += cmd.format(**data).split()
+        expected_url = self.base_url + 'services_users/'
+        self.assert_secure('post', args,
+                           sfmanager.services_users_management_action,
+                           expected_url, data)
+
+    def test_user_delete_username(self):
+        args = self.default_args
+        args += 'sf_user delete --username test2'.split()
+        data = {'username': 'test2', }
+        expected_url = self.base_url + 'services_users/'
+        self.assert_secure('delete', args,
+                           sfmanager.services_users_management_action,
+                           expected_url, data)
+
+    def test_user_delete_email(self):
+        args = self.default_args
+        args += 'sf_user delete --email test2@testy.com'.split()
+        data = {'email': 'test2@testy.com', }
+        expected_url = self.base_url + 'services_users/'
+        self.assert_secure('delete', args,
+                           sfmanager.services_users_management_action,
+                           expected_url, data)
+
+    def test_list(self):
+        args = self.default_args
+        args += 'sf_user list'.split()
+        expected_url = self.base_url + 'services_users/'
+        self.assert_secure('get', args,
+                           sfmanager.services_users_management_action,
+                           expected_url)
+
+
 class TestSystemActions(BaseFunctionalTest):
     def test_backup(self):
         args = self.default_args

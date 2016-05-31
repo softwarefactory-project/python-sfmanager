@@ -186,7 +186,7 @@ authentication systems like Github.
 Add user
 ''''''''
 
-Creates a new local user and registers the user in Gerrit and Redmine
+Creates a new user in the internal backend and registers the user in Gerrit and Redmine
 
 \--username [username], -u [username]
     A unique username/login
@@ -234,6 +234,76 @@ only prevents the user from login in to Software Factory.
  sfmanager --url <http://sfgateway.dom> --auth user:password \
            user delete --username jdoe
 
+
+Registered User management
+--------------------------
+
+These commands manage the global users. Please note that these commands do not
+modify users on Software Factory's local authentication backend.
+
+
+Register user
+'''''''''''''
+
+Registers the user with all the services. The typical use
+case is to provision a user before his or her first login on Software Factory,
+so that project memberships can be set ahead of time.
+
+\--username [username], -u [username]
+    A unique username/login
+
+\--email [email], -e [email]
+    The user email
+
+\--fullname [John Doe], -f [John Doe]
+    The user's full name, defaults to username
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+           sf_user create --username jdoe --fullname "User Tester" \
+                --email jane@doe.org
+
+
+Deregister user
+'''''''''''''''
+
+This command removes the user from all the services. It does not delete a user
+from the local authentication backend; the user can also register again simply
+by logging into Software Factory. The typical use case is when a user experiences
+a problem with external authentication, removing the user from the services and
+relogging might be a solution.
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+           sf_user delete --username jdoe
+
+or
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+           sf_user delete --email jdoe@users.com
+
+List registered users
+'''''''''''''''''''''
+
+This command lists all the users currently registered (ie who have logged in at
+least once) on Software Factory.
+
+For each user, the following information is returned:
+
+* the username
+* the user's full name
+* the user's email
+* the user's internal id within manageSF
+* the user's id within cauth, the SSO system
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+           sf_user list
 
 .. _managesf_backup:
 
