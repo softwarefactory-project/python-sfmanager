@@ -24,10 +24,11 @@ from sfmanager import sfmanager
 
 
 class FakeResponse(object):
-    def __init__(self, status_code=200, text='fake'):
+    def __init__(self, status_code=200, text='fake', json_data=None):
         self.status_code = status_code
         self.text = text
         self.ok = True
+        self.json = lambda: json_data
 
 
 class BaseFunctionalTest(TestCase):
@@ -51,11 +52,11 @@ class BaseFunctionalTest(TestCase):
         pass
 
     def assert_secure(self, method_verb, cmd_args, action_func,
-                      expected_url, expected_data=None):
+                      expected_url, expected_data=None, returned_json=None):
         with patch('sfmanager.sfmanager.get_cookie') as c:
             c.return_value = 'fake_cookie'
             with patch('requests.' + method_verb) as method:
-                method.return_value = FakeResponse()
+                method.return_value = FakeResponse(json_data=returned_json)
                 parsed = self.parser.parse_args(cmd_args)
                 params = {'headers': self.headers, 'cookies': self.cookies}
                 self.assertTrue(action_func(parsed, self.base_url,
@@ -162,6 +163,57 @@ class TestMembershipAction(BaseFunctionalTest):
         expected_url = self.base_url + 'project/membership/'
         self.assert_secure('get', args,
                            sfmanager.membership_action, expected_url)
+
+
+class TestGroupActions(BaseFunctionalTest):
+    def test_group_create(self):
+        args = self.default_args
+        data = {'description': 'desc'}
+        cmd = 'group create -n grp1 -d {description}'
+        args += cmd.format(**data).split()
+        expected_url = self.base_url + 'group/grp1/'
+        self.assert_secure('put', args, sfmanager.groups_management_action,
+                           expected_url, data)
+
+    def test_group_delete(self):
+        args = self.default_args
+        cmd = 'group delete -n grp1'
+        args += cmd.split()
+        expected_url = self.base_url + 'group/grp1/'
+        self.assert_secure('delete', args, sfmanager.groups_management_action,
+                           expected_url)
+
+    def test_group_get_all(self):
+        args = self.default_args
+        cmd = 'group list'
+        args += cmd.split()
+        expected_url = self.base_url + 'group/'
+        self.assert_secure('get', args, sfmanager.groups_management_action,
+                           expected_url,
+                           returned_json={'grp1': {'description': "",
+                                                   'members': []}})
+
+    def test_group_get_one(self):
+        args = self.default_args
+        cmd = 'group list -n grp1'
+        args += cmd.split()
+        expected_url = self.base_url + 'group/grp1/'
+        self.assert_secure('get', args, sfmanager.groups_management_action,
+                           expected_url,
+                           returned_json={'grp1': [{'email': "",
+                                                    'username': "",
+                                                    'name': ""}]})
+
+    def test_group_add_remove(self):
+        args = self.default_args
+        data = {'members': ['user1@sftests.com', 'user2@sftests.com']}
+        cmd = 'group add -n grp1 -e user1@sftests.com user2@sftests.com'
+        args += cmd.format(**data).split()
+        expected_url = self.base_url + 'group/grp1/'
+        with patch('requests.get'):
+            self.assert_secure('post', args,
+                               sfmanager.groups_management_action,
+                               expected_url, data)
 
 
 class TestUserActions(BaseFunctionalTest):
