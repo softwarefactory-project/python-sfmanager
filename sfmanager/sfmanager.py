@@ -471,7 +471,9 @@ def membership_action(args, base_url, headers):
     auth_cookie = {'auth_pubtkt': get_cookie(args)}
 
     if args.subcommand == 'list':
-        logger.info('List users assigned to projects')
+        msg = ('This command is deprecated, use '
+               '"sfmanager sf_user list" instead')
+        logger.info(msg)
         url = build_url(base_url, 'project/membership')
         resp = requests.get(url, headers=headers, cookies=auth_cookie)
         return response(resp)
