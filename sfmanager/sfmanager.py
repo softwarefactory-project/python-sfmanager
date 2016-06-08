@@ -516,7 +516,8 @@ def membership_action(args, base_url, headers):
         project_name = '===' + base64.urlsafe_b64encode(args.project)
     else:
         project_name = args.project
-    url = build_url(base_url, 'project/membership', project_name, args.user)
+    url = build_url(base_url, 'project/membership',
+                    project_name, urllib.quote_plus(args.user))
     if args.subcommand == 'add':
         logger.info('Add member %s to project %s', args.user, args.project)
         if args.groups:
