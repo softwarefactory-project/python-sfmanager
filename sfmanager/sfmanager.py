@@ -161,6 +161,8 @@ def default_arguments(parser):
                         help='Authentication information', required=False)
     parser.add_argument('--github-token', metavar='GithubPersonalAccessToken',
                         help='Authenticate with a Github Access Token')
+    parser.add_argument('--api-key', metavar='APIKEY',
+                        help='Authenticate with a SF API key')
     parser.add_argument('--auth-server-url', metavar='central-auth-server',
                         help='URL of the central auth server')
     parser.add_argument('--cookie', metavar='Authentication cookie',
@@ -420,6 +422,11 @@ def get_cookie(args):
         elif args.github_token is not None:
             token = args.github_token
             cookie = sfauth.get_cookie(url, github_access_token=token,
+                                       use_ssl=use_ssl,
+                                       verify=(not args.insecure))
+        elif args.api_key is not None:
+            api_key = args.api_key
+            cookie = sfauth.get_cookie(url, api_key=api_key,
                                        use_ssl=use_ssl,
                                        verify=(not args.insecure))
         else:
@@ -816,7 +823,8 @@ def main():
 
     if (args.auth is None and
        args.cookie is None and
-       args.github_token is None):
+       args.github_token is None and
+       args.api_key is None):
         host = urlparse.urlsplit(args.url).hostname
         logger.info("No authentication provided, looking for an existing "
                     "cookie for host %s... " % host),
