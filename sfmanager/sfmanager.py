@@ -313,14 +313,6 @@ def project_command(sp):
     cp.add_argument('--upstream-ssh-key', metavar='upstream-ssh-key',
                     help='SSH key for authentication against the upstream ' +
                     'repository (without a passphrase)')
-    cp.add_argument('--core-group', '-c', metavar='core-group-members',
-                    help='member ids separated by comma', nargs='?')
-    cp.add_argument('--ptl-group', '-p', metavar='ptl-group-members',
-                    help='member ids serarated by comma', nargs='?')
-    cp.add_argument('--dev-group', '-e', metavar='dev-group-members',
-                    help='member ids serarated by comma'
-                    ' (only relevant for private project)',
-                    nargs='?')
     cp.add_argument('--private', action='store_true',
                     help='set if the project is private')
     cp.add_argument('--readonly', action='store_true',
