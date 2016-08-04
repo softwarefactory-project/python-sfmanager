@@ -26,6 +26,7 @@ from sfmanager import sfmanager
 class FakeResponse(object):
     def __init__(self, status_code=200, text='fake', json_data=None):
         self.status_code = status_code
+        self.headers = {}
         self.text = text
         self.ok = True
         self.json = lambda: json_data
@@ -157,13 +158,6 @@ class TestMembershipAction(BaseFunctionalTest):
         url = self.base_url + 'project/membership/proj1/u1/dev-group/'
         self.assert_secure('delete', args, sfmanager.membership_action, url)
 
-    def test_list_users_per_project(self):
-        args = self.default_args
-        args += 'membership list'.split()
-        expected_url = self.base_url + 'project/membership/'
-        self.assert_secure('get', args,
-                           sfmanager.membership_action, expected_url)
-
 
 class TestGroupActions(BaseFunctionalTest):
     def test_group_create(self):
@@ -221,12 +215,13 @@ class TestUserActions(BaseFunctionalTest):
         args = self.default_args
         data = {'email': 'e@test.com',
                 'password': 'abc123',
+                'username': 'toto',
                 'fullname': 'toto the tester'}
         cmd = 'user create -f {fullname} -u u1 -p {password} --email {email}'
         args += cmd.format(**data).split()
         expected_url = self.base_url + 'user/u1/'
         self.assert_secure('post', args, sfmanager.user_management_action,
-                           expected_url, data)
+                           expected_url, returned_json=data)
 
     def test_user_delete(self):
         args = self.default_args
@@ -287,9 +282,11 @@ class TestRegisteredUserActions(BaseFunctionalTest):
         args = self.default_args
         args += 'sf_user list'.split()
         expected_url = self.base_url + 'services_users/'
+        data = [{'username': 'joe', 'fullname': 'John Doe',
+                 'email': 'joe@tests.com', 'cauth_id': '1', 'id': '1'}]
         self.assert_secure('get', args,
                            sfmanager.services_users_management_action,
-                           expected_url)
+                           expected_url, returned_json=data)
 
 
 class TestSystemActions(BaseFunctionalTest):

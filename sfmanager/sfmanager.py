@@ -41,6 +41,7 @@ except ImportError:
 
 from pysflib import sfauth
 
+JSON_OUTPUT = False
 
 requests_log = logging.getLogger("requests.packages.urllib3")
 requests_log.setLevel(logging.DEBUG)
@@ -172,6 +173,9 @@ def default_arguments(parser):
     parser.add_argument('--insecure', default=False, action='store_true',
                         help='disable SSL certificate verification, '
                         'verification is enabled by default')
+    parser.add_argument('--json', default=False, action='store_true',
+                        help='Return output as JSON instead of '
+                        'human readable output')
     parser.add_argument('--debug', default=False, action='store_true',
                         help='enable debug messages in console, '
                         'disabled by default')
@@ -200,8 +204,6 @@ def membership_command(parser):
     remove.add_argument('--group', metavar='[core-group|dev-group|ptl-group]',
                         help="The project's group(s)",
                         choices=['core-group', 'dev-group', 'ptl-group'])
-    sub_cmd.add_parser('list',
-                       help='Print a list of active users in Software Factory')
 
 
 def system_command(parser):
@@ -471,11 +473,22 @@ def get_cookie(args):
         die(e.message)
 
 
-def response(resp, as_text=False, quiet=False):
+def response(resp, quiet=False):
     if resp.ok:
         if not quiet:
-            if as_text:
-                print json.loads(resp.text)
+            content_json = \
+                resp.headers.get(
+                    'content-type', '').startswith("application/json")
+            if content_json and JSON_OUTPUT:
+                # Response is already json and we want json
+                # prettyfied output so load the json string
+                # from the response and dump it with indent
+                # to pretty print it by keeping valid json
+                print json.dumps(resp.json(), indent=2)
+            elif content_json:
+                # Response if json but user does not ask
+                # for json output so return str of python object
+                print resp.json()
             else:
                 print resp.text
         return True
@@ -503,14 +516,6 @@ def membership_action(args, base_url, headers):
     if args.subcommand not in ['add', 'remove', 'list']:
         return False
     auth_cookie = {'auth_pubtkt': get_cookie(args)}
-
-    if args.subcommand == 'list':
-        msg = ('This command is deprecated, use '
-               '"sfmanager sf_user list" instead')
-        logger.info(msg)
-        url = build_url(base_url, 'project/membership')
-        resp = requests.get(url, headers=headers, cookies=auth_cookie)
-        return response(resp)
 
     if '/' in args.project:
         project_name = '===' + base64.urlsafe_b64encode(args.project)
@@ -662,7 +667,7 @@ def gerrit_api_htpasswd_action(args, base_url, headers):
     if args.subcommand == 'generate_password':
         resp = requests.put(url, headers=headers,
                             cookies=dict(auth_pubtkt=get_cookie(args)))
-        return response(resp, as_text=True)
+        return response(resp)
 
     elif args.subcommand == 'delete_password':
         resp = requests.delete(url, headers=headers,
@@ -794,6 +799,13 @@ def user_management_action(args, base_url, headers):
             info['password'] = password
         resp = requests.post(url, headers=headers, data=json.dumps(info),
                              cookies=dict(auth_pubtkt=get_cookie(args)))
+        if args.subcommand == 'create' and resp.ok and not JSON_OUTPUT:
+            pt = PrettyTable(["Username", "Fullname", "Email"])
+            i = resp.json()
+            pt.add_row(
+                [i['username'], i['fullname'], i['email']])
+            print pt
+            return True
     if args.subcommand == 'delete':
         resp = requests.delete(url, headers=headers,
                                cookies=dict(auth_pubtkt=get_cookie(args)))
@@ -824,6 +836,17 @@ def services_users_management_action(args, base_url, headers):
     elif args.subcommand == 'list':
         resp = requests.get(url, headers=headers,
                             cookies=dict(auth_pubtkt=get_cookie(args)))
+        if resp.ok and not JSON_OUTPUT:
+            pt = PrettyTable(["Id", "Username", "Fullname", "Email",
+                              "Cauth_id"])
+            for i in resp.json():
+                pt.add_row(
+                    [i['id'], i['username'], i['fullname'], i['email'],
+                     i['cauth_id']])
+            print pt
+            return True
+        else:
+            return response(resp)
     return response(resp)
 
 
@@ -839,7 +862,7 @@ def groups_management_action(args, base_url, headers):
             url = build_url(base_url, 'group', args.name)
         resp = requests.get(url, headers=headers,
                             cookies=dict(auth_pubtkt=get_cookie(args)))
-        if resp.ok:
+        if resp.ok and not JSON_OUTPUT:
             if not args.name:
                 pt = PrettyTable(["Group name", "Description", "Users"])
                 for k, v in resp.json().items():
@@ -887,6 +910,7 @@ def main():
     default_arguments(parser)
     command_options(parser)
     args = parser.parse_args()
+    globals()['JSON_OUTPUT'] = args.json
 
     if not args.url:
         base_url = ""
