@@ -28,6 +28,7 @@ import sys
 import time
 import urlparse
 import urllib
+import yaml
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
 from prettytable import PrettyTable
@@ -158,10 +159,9 @@ def split_and_strip(s):
 
 def default_arguments(parser):
     parser.add_argument('--url',
-                        help='Software Factory public gateway URL',
-                        required=False)
+                        help='Software Factory public gateway URL')
     parser.add_argument('--auth', metavar='username[:password]',
-                        help='Authentication information', required=False)
+                        help='Authentication information')
     parser.add_argument('--github-token', metavar='GithubPersonalAccessToken',
                         help='Authenticate with a Github Access Token')
     parser.add_argument('--api-key', metavar='APIKEY',
@@ -911,6 +911,15 @@ def main():
     command_options(parser)
     args = parser.parse_args()
     globals()['JSON_OUTPUT'] = args.json
+
+    # Set local url and auth if sfconfig.yaml is present
+    sfconfig = None
+    if os.path.isfile("/etc/puppet/hiera/sf/sfconfig.yaml"):
+        sfconfig = yaml.load(open("/etc/puppet/hiera/sf/sfconfig.yaml"))
+    if not args.url and sfconfig:
+        args.url = "http://%s" % sfconfig["fqdn"]
+    if not args.auth and sfconfig:
+        args.auth = "admin:%s" % sfconfig["authentication"]["admin_password"]
 
     if not args.url:
         base_url = ""
