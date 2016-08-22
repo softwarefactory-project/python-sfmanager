@@ -19,7 +19,7 @@ Introduction
 ------------
 
 Global options
-''''''''''''''
+^^^^^^^^^^^^^^
 
 By default all actions require authentication as well as some information about
 the remote servers.
@@ -41,7 +41,7 @@ There are a few optional arguments as well:
 
 
 Example usage
-'''''''''''''
+^^^^^^^^^^^^^
 
 .. code-block:: bash
 
@@ -49,7 +49,7 @@ Example usage
            project create
 
 Help
-''''
+^^^^
 
 Help is always available using the argument '-h':
 
@@ -66,7 +66,7 @@ Project management
 ------------------
 
 Create new project
-''''''''''''''''''
+^^^^^^^^^^^^^^^^^^
 
 SF exposes ways to create and initialize projects in Redmine and Gerrit
 simultaneously. Initializing a project involves setting up the ACL and
@@ -103,7 +103,7 @@ project.
     of another one and where you just want to store patches (eg. for packaging).
 
 Delete Project
-''''''''''''''
+^^^^^^^^^^^^^^
 
 SF exposes ways to delete projects and the groups associated with the project in
 Redmine and Gerrit simultaneously.
@@ -120,7 +120,7 @@ Group management
 ----------------
 
 Default groups
-''''''''''''''
+^^^^^^^^^^^^^^
 
 When a project is created a few default project groups are created. To modify
 these groups a user needs to be at least in the same group of users.
@@ -135,7 +135,7 @@ projectname-dev
     any other user to any group.
 
 List project users
-''''''''''''''''''
+^^^^^^^^^^^^^^^^^^
 
 Currently only lists all known users. This command is useful for the "add"
 subcommand of the membership command or for `--ptl-group`, `--core-group`,
@@ -148,7 +148,7 @@ subcommand of the membership command or for `--ptl-group`, `--core-group`,
 
 
 Add user to project groups
-''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
@@ -159,7 +159,7 @@ Add user to project groups
 
 
 Remove user from project groups
-'''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
@@ -184,7 +184,7 @@ authentication systems like Github.
 
 
 Add user
-''''''''
+^^^^^^^^
 
 Creates a new user in the internal backend and registers the user in Gerrit and Redmine
 
@@ -210,7 +210,7 @@ Creates a new user in the internal backend and registers the user in Gerrit and 
                 --email jane@doe.org
 
 Update user
-'''''''''''
+^^^^^^^^^^^
 
 Update an existing local user. A user can update it's own details, and admins
 can also update other user details. Takes the same arguments as user create.
@@ -224,7 +224,7 @@ inside SF services. Only the password can be updated.
 
 
 Delete user
-'''''''''''
+^^^^^^^^^^^
 
 Disable the user's account. That does not prevent the user from contributing, it
 only prevents the user from login in to Software Factory.
@@ -243,7 +243,7 @@ modify users on Software Factory's local authentication backend.
 
 
 Register user
-'''''''''''''
+^^^^^^^^^^^^^
 
 Registers the user with all the services. The typical use
 case is to provision a user before his or her first login on Software Factory,
@@ -266,7 +266,7 @@ so that project memberships can be set ahead of time.
 
 
 Deregister user
-'''''''''''''''
+^^^^^^^^^^^^^^^
 
 This command removes the user from all the services. It does not delete a user
 from the local authentication backend; the user can also register again simply
@@ -287,7 +287,7 @@ or
            sf_user delete --email jdoe@users.com
 
 List registered users
-'''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^
 
 This command lists all the users currently registered (ie who have logged in at
 least once) on Software Factory.
@@ -318,7 +318,7 @@ Redmine, Paste and Etherpad all of this data is also included in the backup
 file.
 
 Create a new backup
-'''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^
 
 SF exposes ways to perform and retrieve a backup of all the user data store in
 your SF installation. This backup can be used in case of disaster to quickly
@@ -343,7 +343,7 @@ A file called "sf_backup.tar.gz" will be created in the local directory.
 
 
 Restore a backup
-''''''''''''''''
+^^^^^^^^^^^^^^^^
 
 SF exposes ways to restore a backup of all the user data store in your
 SF installation. This backup can be used in case of disaster to quickly
@@ -359,7 +359,7 @@ SF allows you to restore a backup in one of the following way.
            system restore --filename sf_backup.tar.gz
 
 Using GPG to encrypt and decrypt backups
-''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is recommended to store the backup files encrypted when using external
 storage services, since the user and administrative credentials are included
