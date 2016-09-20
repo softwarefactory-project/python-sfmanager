@@ -195,6 +195,7 @@ def membership_command(parser):
     membership_args(add)
     add.add_argument('--groups', nargs='+',
                      metavar='[core-group|dev-group|ptl-group]',
+                     required=True,
                      help="The project's group(s)",
                      choices=['core-group', 'dev-group', 'ptl-group'])
 
