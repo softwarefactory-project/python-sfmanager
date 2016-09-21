@@ -926,6 +926,8 @@ def main():
         base_url = ""
         if args.command != "github":
             parser.error('argument --url is required')
+    if args.url and not args.url.lower().startswith('http'):
+            parser.error('missing protocol in argument --url: %s' % args.url)
     else:
         base_url = "%s/manage" % args.url.rstrip('/')
 
