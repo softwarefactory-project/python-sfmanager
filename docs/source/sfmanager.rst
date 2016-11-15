@@ -179,6 +179,8 @@ will remove the user from all groups associated to a project.
 User management
 ---------------
 
+.. _user-management:
+
 These commands manage the local users, that are not using external
 authentication systems like Github.
 

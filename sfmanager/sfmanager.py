@@ -999,5 +999,6 @@ def main():
            groups_management_action(args, base_url, headers)):
         die("ManageSF failed to execute your command")
 
+
 if __name__ == '__main__':
     main()
