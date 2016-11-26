@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2015 Red Hat, Inc
+# Copyright (C) 2016 Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -15,46 +15,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import setuptools
 
-try:
-    from setuptools import setup, find_packages
-except ImportError:
-    from ez_setup import use_setuptools
-    use_setuptools()
-    from setuptools import setup, find_packages
-
-try:
-    import multiprocessing  # noqa
-except:
-    pass
-
-
-VERSION = '0.1'
-
-
-setup(
-    name='sfmanager',
-    version=VERSION,
-    author="Software Factory team.",
-    author_email="softwarefactory@redhat.com",
-    description="Python client for Software Factory (ManageSF)",
-    packages=find_packages(exclude=['ez_setup']),
-    test_suite='nose.collector',
-    url="https://github.com/redhat-cip/python-sfmanager",
-    license="Apache v2.0",
-    classifiers=[
-        "Environment :: Console",
-        "Intended Audience :: Developers",
-        "Intended Audience :: Information Technology",
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 2.7",
-        "Topic :: System :: Distributed Computing"
-    ],
-    entry_points={
-        "console_scripts": [
-            'sfmanager = sfmanager.sfmanager:main'],
-    },
-    data_files=[('share/man/man1', ['docs/man/sfmanager.1'])],
-    include_package_data=True,
-)
+setuptools.setup(
+    setup_requires=['pbr'],
+    pbr=True)
