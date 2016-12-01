@@ -21,7 +21,6 @@ import glob
 import json
 import logging
 import os
-import re
 import requests
 import sqlite3
 import sys
@@ -489,30 +488,20 @@ def command_options(parser):
 def get_cookie(args):
     if args.cookie is not None:
         return args.cookie
-    url_stripper = re.compile('http[s]?://(.+)')
-    use_ssl = False
     try:
         url = args.auth_server_url.rstrip('/')
-        m = url_stripper.match(url)
-        if m:
-            if url.lower().startswith('https'):
-                use_ssl = True
-            url = m.groups()[0]
         if args.auth is not None:
             (username, password) = args.auth.split(':')
             cookie = sfauth.get_cookie(url, username=username,
                                        password=password,
-                                       use_ssl=use_ssl,
                                        verify=(not args.insecure))
         elif args.github_token is not None:
             token = args.github_token
             cookie = sfauth.get_cookie(url, github_access_token=token,
-                                       use_ssl=use_ssl,
                                        verify=(not args.insecure))
         elif args.api_key is not None:
             api_key = args.api_key
             cookie = sfauth.get_cookie(url, api_key=api_key,
-                                       use_ssl=use_ssl,
                                        verify=(not args.insecure))
         else:
             die('Please provide credentials')
@@ -1083,7 +1072,7 @@ def main():
     elif os.path.isfile("/etc/puppet/hiera/sf/sfconfig.yaml"):
         sfconfig = yaml.load(open("/etc/puppet/hiera/sf/sfconfig.yaml"))
     if not args.url and sfconfig:
-        args.url = "http://%s" % sfconfig["fqdn"]
+        args.url = "https://%s" % sfconfig["fqdn"]
     if not args.auth and sfconfig:
         args.auth = "admin:%s" % sfconfig["authentication"]["admin_password"]
 
