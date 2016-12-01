@@ -129,6 +129,62 @@ class TestTestsActions(BaseFunctionalTest):
                            {'project-scripts': False})
 
 
+class TestJobsActions(BaseFunctionalTest):
+    def test_list_jobs(self):
+        args = self.default_args
+        args += 'job list --job-name toto'.split()
+        expected_url = self.base_url + 'jobs/toto'
+        returned_json = {'jenkins': [{'job_name': 'toto',
+                                      'job_id': 4,
+                                      'status': 'SUCCESS'}, ]}
+        self.assert_secure('get', args,
+                           sfmanager.job_action, expected_url,
+                           returned_json=returned_json)
+
+    def test_logs(self):
+        args = self.default_args
+        args += 'job logs --job-name toto --id 4'.split()
+        expected_url = self.base_url + 'jobs/toto/id/4/logs'
+        returned_json = {'jenkins': {'job_name': 'toto',
+                                     'job_id': 4,
+                                     'logs_url': 'aaaa'}}
+        self.assert_secure('get', args,
+                           sfmanager.job_action, expected_url,
+                           returned_json=returned_json)
+
+    def test_parameters(self):
+        args = self.default_args
+        args += 'job parameters --job-name toto --id 4'.split()
+        expected_url = self.base_url + 'jobs/toto/id/4/parameters'
+        returned_json = {'jenkins': {'job_name': 'toto',
+                                     'job_id': 4,
+                                     'parameters': [{'name': 'a',
+                                                     'value': 'b'}, ]}}
+        self.assert_secure('get', args,
+                           sfmanager.job_action, expected_url,
+                           returned_json=returned_json)
+
+    def test_run(self):
+        args = self.default_args
+        args += 'job run --job-name toto'.split()
+        expected_url = self.base_url + 'jobs/toto/'
+        self.assert_secure('post', args,
+                           sfmanager.job_action, expected_url,
+                           returned_json={'jenkins': {'job_name': 'toto',
+                                                      'job_id': 2,
+                                                      'status': 'PENDING'}})
+
+    def test_stop(self):
+        args = self.default_args
+        args += 'job stop --job-name toto --id 2'.split()
+        expected_url = self.base_url + 'jobs/toto/id/2'
+        self.assert_secure('delete', args,
+                           sfmanager.job_action, expected_url,
+                           returned_json={'jenkins': {'job_name': 'toto',
+                                                      'job_id': 2,
+                                                      'status': 'ABORTED'}})
+
+
 class TestMembershipAction(BaseFunctionalTest):
     def test_project_add_user_to_groups(self):
         args = self.default_args

@@ -422,6 +422,55 @@ def gerrit_api_htpassword_command(parser):
                             ' access htpassword')
 
 
+def job_command(parser):
+    job = parser.add_parser('job',
+                            help='jobs related tools')
+    subc = job.add_subparsers(dest='subcommand')
+    list = subc.add_parser('list',
+                           help='list jobs statuses')
+    list.add_argument('--job-name', '-j', metavar='job-name',
+                      required=True)
+    list.add_argument('--id', '-i', metavar='job-id',
+                      required=False)
+    list.add_argument('--change', '-c', metavar='review-change',
+                      required=False)
+    list.add_argument('--patchset', '-p', metavar='change-patchset',
+                      required=False)
+    logs = subc.add_parser('logs',
+                           help='show the logs of a job')
+    logs.add_argument('--job-name', '-j', metavar='job-name',
+                      required=True)
+    logs.add_argument('--id', '-i', metavar='job-id',
+                      required=True)
+    logs.add_argument('--fetch', default=False, action='store_true',
+                      help='if enabled, attempts downloading the logs'
+                           ' and displays them to stdout (not compatible'
+                           ' with --json option)')
+    params = subc.add_parser('parameters',
+                             help='show the parameters used by a job')
+    params.add_argument('--job-name', '-j', metavar='job-name',
+                        required=True)
+    params.add_argument('--id', '-i', metavar='job-id',
+                        required=True)
+    run = subc.add_parser('run',
+                          help='run a new job')
+    run.add_argument('--job-name', '-j', metavar='job-name',
+                     required=True)
+    run.add_argument('--parameters', '-p', metavar='{"name": "value"}',
+                     required=False)
+    run.add_argument('--clone-from', '-c', metavar='job-id',
+                     required=False,
+                     help='run this job with the same parameters as <job-id>.'
+                          ' if --parameters are used, they override the'
+                          ' parameters of the cloned job.')
+    stop = subc.add_parser('stop',
+                           help='stop a running job')
+    stop.add_argument('--job-name', '-j', metavar='job-name',
+                      required=True)
+    stop.add_argument('--id', '-i', metavar='job-id',
+                      required=True)
+
+
 def command_options(parser):
     sp = parser.add_subparsers(dest="command")
     project_command(sp)
@@ -434,6 +483,7 @@ def command_options(parser):
     tests_command(sp)
     pages_command(sp)
     github_command(sp)
+    job_command(sp)
 
 
 def get_cookie(args):
@@ -508,6 +558,118 @@ def response(resp, quiet=False):
 
 def build_url(*args):
     return '/'.join(s.strip('/') for s in args) + '/'
+
+
+def job_action(args, base_url, headers):
+    if args.command != 'job':
+        return False
+    if args.subcommand not in ['list', 'logs', 'parameters', 'run', 'stop']:
+        return False
+    auth_cookie = {'auth_pubtkt': get_cookie(args)}
+    job_name = args.job_name
+    if args.subcommand == 'list':
+        url = build_url(base_url, 'jobs/%s' % job_name)
+        if getattr(args, 'id'):
+            url = build_url(url, 'id/%s' % args.id)
+        if getattr(args, 'change'):
+            url += '?change=%s' % urllib.quote_plus(args.change)
+            if getattr(args, 'patchset'):
+                url += '&patchset=%s' % urllib.quote_plus(args.patchset)
+        resp = requests.get(url, headers=headers,
+                            cookies=auth_cookie,
+                            verify=not args.insecure)
+        if resp.ok and not JSON_OUTPUT:
+            for service in resp.json():
+                print "\nJob(s) run by service %s:\n" % service
+                pt = PrettyTable(["name", "id", "status"])
+                for i in resp.json()[service]:
+                    pt.add_row(
+                        [i['job_name'], i['job_id'], i['status']])
+                print pt
+            return True
+        return response(resp)
+    if args.subcommand == 'logs':
+        url = build_url(base_url, 'jobs/%s/id/%s/logs' % (job_name, args.id))
+        resp = requests.get(url, headers=headers,
+                            cookies=auth_cookie,
+                            verify=not args.insecure)
+        if resp.ok and not JSON_OUTPUT:
+            if getattr(args, 'fetch'):
+                for service in resp.json():
+                    url = resp.json()[service]['logs_url']
+                    print "\nJob run by service %s, at %s:\n" % (service, url)
+                    print requests.get(url, headers=headers,
+                                       cookies=auth_cookie,
+                                       verify=not args.insecure).text
+                return True
+        return response(resp)
+    if args.subcommand == 'parameters':
+        url = build_url(base_url,
+                        'jobs/%s/id/%s/parameters' % (job_name, args.id))
+        resp = requests.get(url, headers=headers,
+                            cookies=auth_cookie,
+                            verify=not args.insecure)
+        if resp.ok and not JSON_OUTPUT:
+            for service in resp.json():
+                pt = PrettyTable(["name", "value"])
+                for i in resp.json()[service]['parameters']:
+                    pt.add_row(
+                        [i['name'], i['value']])
+                print pt
+            return True
+        return response(resp)
+    if args.subcommand == 'run':
+        url = build_url(base_url, 'jobs/%s/' % (job_name, ))
+        data = {}
+        if getattr(args, 'parameters'):
+            data = json.loads(args.parameters)
+        if getattr(args, 'clone_from'):
+            id = args.clone_from
+            p_url = build_url(base_url,
+                              'jobs/%s/id/%s/parameters' % (job_name, id))
+            resp = requests.get(p_url, headers=headers,
+                                cookies=auth_cookie,
+                                verify=not args.insecure)
+            if resp.ok:
+                print resp.json()
+                # There's usually only one, careful if we bump it
+                for s in resp.json():
+                    cloned = dict((u['name'], u['value'])
+                                  for u in resp.json()[s]['parameters'])
+                    cloned.update(data)
+                    data = cloned
+            else:
+                print "Could not fetch parameters for job %s:%s" % (job_name,
+                                                                    id)
+        resp = requests.post(url, headers=headers,
+                             cookies=auth_cookie,
+                             json=data,
+                             verify=not args.insecure)
+        if resp.ok and not JSON_OUTPUT:
+            for service in resp.json():
+                print "\nJob(s) started by service %s:\n" % service
+                pt = PrettyTable(["name", "id", "status"])
+                i = resp.json()[service]
+                pt.add_row(
+                    [i['job_name'], i['job_id'], i['status']])
+                print pt
+            return True
+        return response(resp)
+    if args.subcommand == 'stop':
+        url = build_url(base_url, 'jobs/%s/id/%s/' % (job_name, args.id))
+        resp = requests.delete(url, headers=headers,
+                               cookies=auth_cookie,
+                               verify=not args.insecure)
+        if resp.ok and not JSON_OUTPUT:
+            for service in resp.json():
+                print "\nJob(s) stopped by service %s:\n" % service
+                pt = PrettyTable(["name", "id", "status"])
+                i = resp.json()[service]
+                pt.add_row(
+                    [i['job_name'], i['job_id'], i['status']])
+                print pt
+            return True
+        return response(resp)
 
 
 def membership_action(args, base_url, headers):
@@ -999,7 +1161,8 @@ def main():
            pages_action(args, base_url, headers) or
            github_action(args, base_url, headers) or
            services_users_management_action(args, base_url, headers) or
-           groups_management_action(args, base_url, headers)):
+           groups_management_action(args, base_url, headers) or
+           job_action(args, base_url, headers)):
         die("ManageSF failed to execute your command")
 
 
