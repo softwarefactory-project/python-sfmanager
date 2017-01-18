@@ -185,6 +185,85 @@ class TestJobsActions(BaseFunctionalTest):
                                                       'status': 'ABORTED'}})
 
 
+class TestNodesActions(BaseFunctionalTest):
+    def test_list_nodes(self):
+        args = self.default_args
+        args += 'node list --id toto'.split()
+        expected_url = self.base_url + 'nodes/id/toto'
+        keys = ['node_id', 'provider_name', 'AZ', 'label',
+                'target', 'manager', 'hostname', 'node_name',
+                'server_id', 'ip', 'state', 'age']
+        node_info = dict(zip(keys, ['aaa'] * len(keys)))
+        returned_json = {'nodepool': [node_info, ]}
+        self.assert_secure('get', args,
+                           sfmanager.node_action, expected_url,
+                           returned_json=returned_json)
+
+    def test_hold_node(self):
+        args = self.default_args
+        args += 'node hold --id toto'.split()
+        expected_url = self.base_url + 'nodes/id/toto'
+        keys = ['node_id', 'provider_name', 'AZ', 'label',
+                'target', 'manager', 'hostname', 'node_name',
+                'server_id', 'ip', 'state', 'age']
+        node_info = dict(zip(keys, ['aaa'] * len(keys)))
+        returned_json = {'nodepool': [node_info, ]}
+        self.assert_secure('put', args,
+                           sfmanager.node_action, expected_url,
+                           returned_json=returned_json)
+
+    def test_delete_node(self):
+        args = self.default_args
+        args += 'node delete --id toto'.split()
+        expected_url = self.base_url + 'nodes/id/toto'
+        keys = ['node_id', 'provider_name', 'AZ', 'label',
+                'target', 'manager', 'hostname', 'node_name',
+                'server_id', 'ip', 'state', 'age']
+        node_info = dict(zip(keys, ['aaa'] * len(keys)))
+        returned_json = {'nodepool': [node_info, ]}
+        self.assert_secure('delete', args,
+                           sfmanager.node_action, expected_url,
+                           returned_json=returned_json)
+
+    def test_list_images(self):
+        args = self.default_args
+        args += 'node image-list'.split()
+        expected_url = self.base_url + 'nodes/images/'
+        keys = ['id', 'provider_name', 'image_name', 'hostname',
+                'version', 'image_id',
+                'server_id', 'state', 'age']
+        node_info = dict(zip(keys, ['aaa'] * len(keys)))
+        returned_json = {'nodepool': [node_info, ]}
+        self.assert_secure('get', args,
+                           sfmanager.node_action, expected_url,
+                           returned_json=returned_json)
+
+    def test_add_user_key(self):
+        args = self.default_args
+        expected_url = self.base_url + 'nodes/id/toto/authorize_key/'
+        with NamedTemporaryFile(delete=False) as tmpfile:
+            tmpfile.write("ssh-rsa blah")
+        d = {'public_key': 'ssh-rsa blah'}
+        args += ('node add-user-key --id toto --key %s' % tmpfile.name).split()
+        # the operation calls POST then GET
+        with patch('sfmanager.sfmanager.get_cookie') as c:
+            c.return_value = 'fake_cookie'
+            with patch('requests.post') as POST, patch('requests.get'):
+                POST.return_value = FakeResponse(json_data={'nodepool': 'OK'})
+                parsed = self.parser.parse_args(args)
+                self.assertTrue(sfmanager.node_action(parsed, self.base_url,
+                                                      self.headers))
+                POST.assert_called_with(expected_url,
+                                        headers=self.headers,
+                                        cookies=self.cookies,
+                                        json=json.dumps(d),
+                                        verify=not parsed.insecure)
+        try:
+            os.remove(tmpfile.name)
+        except IOError:
+            pass
+
+
 class TestMembershipAction(BaseFunctionalTest):
     def test_project_add_user_to_groups(self):
         args = self.default_args

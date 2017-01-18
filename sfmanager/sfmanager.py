@@ -470,6 +470,39 @@ def job_command(parser):
                       required=True)
 
 
+def node_command(parser):
+    node = parser.add_parser('node',
+                             help='nodes related tools')
+    subc = node.add_subparsers(dest='subcommand')
+    list = subc.add_parser('list',
+                           help='list information about nodes currently up')
+    list.add_argument('--id', '-i', metavar='node-id',
+                      required=False)
+    aduk = subc.add_parser('add-user-key',
+                           help=('Add a SSH public key to the list of '
+                                 'authorized keys on node node-id'))
+    aduk.add_argument('--key', '-k', metavar='/path/to/public_key',
+                      required=False)
+    aduk.add_argument('--id', '-i', metavar='node-id',
+                      required=True)
+    hold = subc.add_parser('hold',
+                           help='prevent a node from being deleted after'
+                                ' a job has run its course')
+    hold.add_argument('--id', '-i', metavar='node-id',
+                      required=True)
+    delete = subc.add_parser('delete',
+                             help='schedule a node for immediate deletion')
+    delete.add_argument('--id', '-i', metavar='node-id',
+                        required=True)
+    imagelist = subc.add_parser('image-list',
+                                help='list information about images available'
+                                     ' to spawn nodes')
+    imagelist.add_argument('--provider', '-p', metavar='provider-name',
+                           required=False)
+    imagelist.add_argument('--image', '-i', metavar='image-name',
+                           required=False)
+
+
 def command_options(parser):
     sp = parser.add_subparsers(dest="command")
     project_command(sp)
@@ -483,6 +516,7 @@ def command_options(parser):
     pages_command(sp)
     github_command(sp)
     job_command(sp)
+    node_command(sp)
 
 
 def get_cookie(args):
@@ -547,6 +581,113 @@ def response(resp, quiet=False):
 
 def build_url(*args):
     return '/'.join(s.strip('/') for s in args) + '/'
+
+
+def node_action(args, base_url, headers):
+
+    def print_pt(resp):
+        for service in resp.json():
+            print "\nNode(s) managed by service %s:\n" % service
+            pt = PrettyTable(['ID', 'provider', 'AZ', 'label', 'target',
+                              'manager', 'hostname', 'node name',
+                              'server ID', 'IP', 'state',
+                              'age (seconds)'])
+            for i in resp.json()[service]:
+                pt.add_row(
+                    [i['node_id'], i['provider_name'], i['AZ'],
+                     i['label'], i['target'], i['manager'],
+                     i['hostname'], i['node_name'], i['server_id'],
+                     i['ip'], i['state'], i['age'], ])
+            print pt
+
+    if args.command != 'node':
+        return False
+    if args.subcommand not in ['list', 'add-user-key', 'hold', 'delete',
+                               'image-list', ]:
+        return False
+    auth_cookie = {'auth_pubtkt': get_cookie(args)}
+    if args.subcommand == 'list':
+        url = build_url(base_url, 'nodes/')
+        if getattr(args, 'id'):
+            url = build_url(url, 'id/%s' % args.id)
+        resp = requests.get(url, headers=headers,
+                            cookies=auth_cookie,
+                            verify=not args.insecure)
+        if resp.ok and not JSON_OUTPUT:
+            print_pt(resp)
+            return True
+        return response(resp)
+    if args.subcommand == 'add-user-key':
+        url = build_url(base_url, 'nodes/id/%s/authorize_key/' % args.id)
+        try:
+            key_contents = file(args.key).read()
+        except IOError as e:
+            die(unicode(e))
+        data = {'public_key': key_contents}
+        resp = requests.post(url, headers=headers, cookies=auth_cookie,
+                             json=json.dumps(data), verify=not args.insecure)
+        if resp.ok:
+            url = build_url(url, 'id/%s' % args.id)
+            resp = requests.get(url, headers=headers,
+                                cookies=auth_cookie,
+                                verify=not args.insecure)
+            for service in resp.json():
+                cmd = "ssh -o StrictHostKeyChecking=no jenkins@%s"
+                cmd = cmd % resp.json()[service][0]['ip']
+                msg = "Key added on %s; node can be reached via command: %s"
+                print msg % (resp.json()[service][0]['node_name'],
+                             cmd)
+            return True
+        else:
+            if resp.json():
+                msg = "Key not added because of following error: %s"
+                service = resp.json().keys()[0]
+                die(msg % resp.json()[service]["error_description"])
+            else:
+                die(resp.body)
+    if args.subcommand == 'hold':
+        url = build_url(base_url, 'nodes/id/%s' % args.id)
+        resp = requests.put(url, headers=headers,
+                            cookies=auth_cookie,
+                            verify=not args.insecure)
+        if resp.ok and not JSON_OUTPUT:
+            print_pt(resp)
+            return True
+        return response(resp)
+    if args.subcommand == 'delete':
+        url = build_url(base_url, 'nodes/id/%s' % args.id)
+        resp = requests.delete(url, headers=headers,
+                               cookies=auth_cookie,
+                               verify=not args.insecure)
+        if resp.ok and not JSON_OUTPUT:
+            print_pt(resp)
+            return True
+        return response(resp)
+    if args.subcommand == 'image-list':
+        url = build_url(base_url, 'nodes/images/')
+        parameters = {}
+        if getattr(args, 'provider'):
+            parameters['provider_name'] = args.provider
+        if getattr(args, 'image'):
+            parameters['image'] = args.image
+        resp = requests.get(url, headers=headers,
+                            cookies=auth_cookie,
+                            params=parameters,
+                            verify=not args.insecure)
+        if resp.ok and not JSON_OUTPUT:
+            for service in resp.json():
+                print "\nImage(s) managed by service %s:\n" % service
+                pt = PrettyTable(['ID', 'provider', 'image',
+                                  'hostname', 'version', 'image ID',
+                                  'server ID', 'state', 'age (seconds)'])
+                for i in resp.json()[service]:
+                    pt.add_row(
+                        [i['id'], i['provider_name'], i['image_name'],
+                         i['hostname'], i['version'], i['image_id'],
+                         i['server_id'], i['state'], i['age'], ])
+                print pt
+            return True
+        return response(resp)
 
 
 def job_action(args, base_url, headers):
@@ -1151,7 +1292,8 @@ def main():
            github_action(args, base_url, headers) or
            services_users_management_action(args, base_url, headers) or
            groups_management_action(args, base_url, headers) or
-           job_action(args, base_url, headers)):
+           job_action(args, base_url, headers) or
+           node_action(args, base_url, headers)):
         die("ManageSF failed to execute your command")
 
 
