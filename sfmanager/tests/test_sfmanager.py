@@ -14,9 +14,8 @@
 
 import argparse
 import base64
-import json
 import os
-from mock import patch, MagicMock
+from mock import patch
 from tempfile import mkstemp, NamedTemporaryFile
 from unittest import TestCase
 
@@ -56,25 +55,16 @@ class BaseFunctionalTest(TestCase):
                       expected_url, expected_data=None, returned_json=None):
         with patch('sfmanager.sfmanager.get_cookie') as c:
             c.return_value = 'fake_cookie'
-            with patch('requests.' + method_verb) as method:
+            with patch('sfmanager.sfmanager.request') as method:
                 method.return_value = FakeResponse(json_data=returned_json)
                 parsed = self.parser.parse_args(cmd_args)
-                params = {'headers': self.headers, 'cookies': self.cookies}
-                self.assertTrue(action_func(parsed, self.base_url,
-                                            self.headers))
+                self.assertTrue(action_func(parsed, self.base_url))
 
-                # Here there if is an issue about deserialization
-                # of data that make assert_called_with to fail
-                # randomly. Not the best way but retries a couple of
-                # time before raising an error
-                for i in xrange(5):
-                    try:
-                        if expected_data is not None:
-                            params['data'] = json.dumps(expected_data)
-                        method.assert_called_with(expected_url, **params)
-                        break
-                    except Exception:
-                        pass
+                if expected_data is not None:
+                    method.assert_called_with(method_verb, expected_url,
+                                              json=expected_data)
+                else:
+                    method.assert_called_with(method_verb, expected_url)
 
 
 class TestProjectUserAction(BaseFunctionalTest):
@@ -83,7 +73,7 @@ class TestProjectUserAction(BaseFunctionalTest):
         args += 'project create --name proj1'.split()
         expected_url = self.base_url + 'project/proj1/'
         self.assert_secure('put', args,
-                           sfmanager.project_action, expected_url)
+                           sfmanager.project_action, expected_url, {})
 
     def test_create_project_named_with_namespace(self):
         args = self.default_args
@@ -91,7 +81,7 @@ class TestProjectUserAction(BaseFunctionalTest):
         name = '===' + base64.urlsafe_b64encode('ns1/proj1')
         expected_url = self.base_url + 'project/%s/' % name
         self.assert_secure('put', args,
-                           sfmanager.project_action, expected_url)
+                           sfmanager.project_action, expected_url, {})
 
     def test_create_project_with_branches(self):
         cmd = ('project create --name proj2 '
@@ -133,7 +123,7 @@ class TestJobsActions(BaseFunctionalTest):
     def test_list_jobs(self):
         args = self.default_args
         args += 'job list --job-name toto'.split()
-        expected_url = self.base_url + 'jobs/toto'
+        expected_url = self.base_url + 'jobs/toto/'
         returned_json = {'jenkins': [{'job_name': 'toto',
                                       'job_id': 4,
                                       'status': 'SUCCESS'}, ]}
@@ -144,7 +134,7 @@ class TestJobsActions(BaseFunctionalTest):
     def test_logs(self):
         args = self.default_args
         args += 'job logs --job-name toto --id 4'.split()
-        expected_url = self.base_url + 'jobs/toto/id/4/logs'
+        expected_url = self.base_url + 'jobs/toto/id/4/logs/'
         returned_json = {'jenkins': {'job_name': 'toto',
                                      'job_id': 4,
                                      'logs_url': 'aaaa'}}
@@ -155,7 +145,7 @@ class TestJobsActions(BaseFunctionalTest):
     def test_parameters(self):
         args = self.default_args
         args += 'job parameters --job-name toto --id 4'.split()
-        expected_url = self.base_url + 'jobs/toto/id/4/parameters'
+        expected_url = self.base_url + 'jobs/toto/id/4/parameters/'
         returned_json = {'jenkins': {'job_name': 'toto',
                                      'job_id': 4,
                                      'parameters': [{'name': 'a',
@@ -169,7 +159,7 @@ class TestJobsActions(BaseFunctionalTest):
         args += 'job run --job-name toto'.split()
         expected_url = self.base_url + 'jobs/toto/'
         self.assert_secure('post', args,
-                           sfmanager.job_action, expected_url,
+                           sfmanager.job_action, expected_url, {},
                            returned_json={'jenkins': {'job_name': 'toto',
                                                       'job_id': 2,
                                                       'status': 'PENDING'}})
@@ -177,7 +167,7 @@ class TestJobsActions(BaseFunctionalTest):
     def test_stop(self):
         args = self.default_args
         args += 'job stop --job-name toto --id 2'.split()
-        expected_url = self.base_url + 'jobs/toto/id/2'
+        expected_url = self.base_url + 'jobs/toto/id/2/'
         self.assert_secure('delete', args,
                            sfmanager.job_action, expected_url,
                            returned_json={'jenkins': {'job_name': 'toto',
@@ -189,7 +179,7 @@ class TestNodesActions(BaseFunctionalTest):
     def test_list_nodes(self):
         args = self.default_args
         args += 'node list --id toto'.split()
-        expected_url = self.base_url + 'nodes/id/toto'
+        expected_url = self.base_url + 'nodes/id/toto/'
         keys = ['node_id', 'provider_name', 'AZ', 'label',
                 'target', 'manager', 'hostname', 'node_name',
                 'server_id', 'ip', 'state', 'age']
@@ -202,7 +192,7 @@ class TestNodesActions(BaseFunctionalTest):
     def test_hold_node(self):
         args = self.default_args
         args += 'node hold --id toto'.split()
-        expected_url = self.base_url + 'nodes/id/toto'
+        expected_url = self.base_url + 'nodes/id/toto/'
         keys = ['node_id', 'provider_name', 'AZ', 'label',
                 'target', 'manager', 'hostname', 'node_name',
                 'server_id', 'ip', 'state', 'age']
@@ -215,7 +205,7 @@ class TestNodesActions(BaseFunctionalTest):
     def test_delete_node(self):
         args = self.default_args
         args += 'node delete --id toto'.split()
-        expected_url = self.base_url + 'nodes/id/toto'
+        expected_url = self.base_url + 'nodes/id/toto/'
         keys = ['node_id', 'provider_name', 'AZ', 'label',
                 'target', 'manager', 'hostname', 'node_name',
                 'server_id', 'ip', 'state', 'age']
@@ -248,16 +238,16 @@ class TestNodesActions(BaseFunctionalTest):
         # the operation calls POST then GET
         with patch('sfmanager.sfmanager.get_cookie') as c:
             c.return_value = 'fake_cookie'
-            with patch('requests.post') as POST, patch('requests.get'):
-                POST.return_value = FakeResponse(json_data={'nodepool': 'OK'})
+            with patch('sfmanager.sfmanager.request') as r:
+                def side_effect(*argv, **kwarg):
+                    if argv[0] == 'post':
+                        return FakeResponse(json_data={'nodepool': 'OK'})
+                    else:
+                        return FakeResponse(json_data={})
+                r.side_effect = side_effect
                 parsed = self.parser.parse_args(args)
-                self.assertTrue(sfmanager.node_action(parsed, self.base_url,
-                                                      self.headers))
-                POST.assert_called_with(expected_url,
-                                        headers=self.headers,
-                                        cookies=self.cookies,
-                                        data=d,
-                                        verify=not parsed.insecure)
+                self.assertTrue(sfmanager.node_action(parsed, self.base_url))
+                r.assert_any_call('post', expected_url, json=d)
         try:
             os.remove(tmpfile.name)
         except IOError:
@@ -333,17 +323,6 @@ class TestGroupActions(BaseFunctionalTest):
                                                     'username': "",
                                                     'name': ""}]})
 
-    def test_group_add_remove(self):
-        args = self.default_args
-        data = {'members': ['user1@sftests.com', 'user2@sftests.com']}
-        cmd = 'group add -n grp1 -e user1@sftests.com user2@sftests.com'
-        args += cmd.format(**data).split()
-        expected_url = self.base_url + 'group/grp1/'
-        with patch('requests.get'):
-            self.assert_secure('post', args,
-                               sfmanager.groups_management_action,
-                               expected_url, data)
-
 
 class TestUserActions(BaseFunctionalTest):
     def test_user_create(self):
@@ -355,8 +334,10 @@ class TestUserActions(BaseFunctionalTest):
         cmd = 'user create -f {fullname} -u u1 -p {password} --email {email}'
         args += cmd.format(**data).split()
         expected_url = self.base_url + 'user/u1/'
+        expected_data = {'email': data['email'], 'password': data['password'],
+                         'fullname': data['fullname']}
         self.assert_secure('post', args, sfmanager.user_management_action,
-                           expected_url, returned_json=data)
+                           expected_url, expected_data, returned_json=data)
 
     def test_user_delete(self):
         args = self.default_args
@@ -431,28 +412,6 @@ class TestSystemActions(BaseFunctionalTest):
         expected_url = self.base_url + 'backup/'
         self.assert_secure('post', args, sfmanager.backup_action, expected_url)
 
-    def test_restore(self):
-        args = self.default_args
-        args += 'system restore --filename tmp_backup'.split()
-        expected_url = self.base_url + 'restore/'
-        with open('tmp_backup', 'a') as toto:
-            toto.write(' ')
-
-        with patch('sfmanager.sfmanager.get_cookie') as c:
-            c.return_value = 'fake_cookie'
-            test_mock = 'sfmanager.sfmanager.open'
-            with patch(test_mock, create=True) as mock_open:
-                mock_open.return_value = MagicMock(spec=file)
-                with patch('requests.post') as method:
-                    method.return_value = FakeResponse()
-                    parsed = self.parser.parse_args(args)
-                    params = {'headers': self.headers, 'cookies': self.cookies}
-                    params['files'] = {'file': mock_open.return_value}
-                    self.assertTrue(sfmanager.backup_action(parsed,
-                                                            self.base_url,
-                                                            self.headers))
-                    method.assert_called_with(expected_url, **params)
-
 
 class TestGithubActions(BaseFunctionalTest):
     def test_create_repo(self):
@@ -463,13 +422,13 @@ class TestGithubActions(BaseFunctionalTest):
         expected_data = {"name": "reponame", "private": False}
 
         with patch('requests.post') as method:
-            sfmanager.github_action(parsed_args, "", {})
+            sfmanager.github_action(parsed_args, "")
 
             call_args, call_kwargs = method.call_args
             self.assertEqual(call_args[0], expected_url)
             self.assertEqual(call_kwargs.get('headers'),
                              self.expected_gh_headers)
-            self.assertEqual(json.loads(call_kwargs.get('data')),
+            self.assertEqual(call_kwargs.get('json'),
                              expected_data)
 
     def test_create_org_repo(self):
@@ -481,13 +440,13 @@ class TestGithubActions(BaseFunctionalTest):
         expected_data = {"name": "reponame", "private": False}
 
         with patch('requests.post') as method:
-            sfmanager.github_action(parsed_args, "", {})
+            sfmanager.github_action(parsed_args, "")
 
             call_args, call_kwargs = method.call_args
             self.assertEqual(call_args[0], expected_url)
             self.assertEqual(call_kwargs.get('headers'),
                              self.expected_gh_headers)
-            self.assertEqual(json.loads(call_kwargs.get('data')),
+            self.assertEqual(call_kwargs.get('json'),
                              expected_data)
 
     def test_fork_repo(self):
@@ -500,7 +459,7 @@ class TestGithubActions(BaseFunctionalTest):
 
         with patch('requests.post') as method:
             with patch('requests.patch'):
-                sfmanager.github_action(parsed_args, "", {})
+                sfmanager.github_action(parsed_args, "")
 
                 call_args, call_kwargs = method.call_args
                 self.assertEqual(call_args[0], expected_url)
@@ -518,7 +477,7 @@ class TestGithubActions(BaseFunctionalTest):
 
         with patch('requests.post') as method:
             with patch('requests.patch'):
-                sfmanager.github_action(parsed_args, "", {})
+                sfmanager.github_action(parsed_args, "")
 
                 call_args, call_kwargs = method.call_args
                 self.assertEqual(call_args[0], expected_url)
@@ -526,7 +485,7 @@ class TestGithubActions(BaseFunctionalTest):
                                  self.expected_gh_headers)
 
         expected_data = {"organization": "rdo-packages"}
-        self.assertEqual(json.loads(call_kwargs.get('data')), expected_data)
+        self.assertEqual(call_kwargs.get('json'), expected_data)
 
     @patch('requests.delete')
     @patch('requests.get')
@@ -537,7 +496,7 @@ class TestGithubActions(BaseFunctionalTest):
         get_method.return_value.json.return_value = {'login': 'username'}
         expected_url = "https://api.github.com/repos/username/reponame"
         kwargs = {'headers': self.expected_gh_headers}
-        sfmanager.github_action(parsed_args, "", {})
+        sfmanager.github_action(parsed_args, "")
         delete_method.assert_called_with(expected_url, **kwargs)
 
     @patch('requests.delete')
@@ -549,7 +508,7 @@ class TestGithubActions(BaseFunctionalTest):
 
         expected_url = "https://api.github.com/repos/orgname/reponame"
         kwargs = {'headers': self.expected_gh_headers}
-        sfmanager.github_action(parsed_args, "", {})
+        sfmanager.github_action(parsed_args, "")
         delete_method.assert_called_with(expected_url, **kwargs)
 
     @patch('requests.post')
@@ -575,12 +534,12 @@ class TestGithubActions(BaseFunctionalTest):
             % expected_owner
         expected_data = {"read_only": False, "title": "%s ssh key" %
                          expected_owner, "key": "ssh-rsa"}
-        sfmanager.github_action(parsed_args, "", {})
+        sfmanager.github_action(parsed_args, "")
 
         call_args, call_kwargs = post_method.call_args
         self.assertEqual(call_args[0], expected_url)
         self.assertEqual(call_kwargs.get('headers'), self.expected_gh_headers)
-        self.assertEqual(json.loads(call_kwargs.get('data')), expected_data)
+        self.assertEqual(call_kwargs.get('json'), expected_data)
 
         # Remove tmpfile
         try:

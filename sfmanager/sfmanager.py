@@ -42,6 +42,8 @@ except ImportError:
 from pysflib import sfauth
 
 JSON_OUTPUT = False
+VERIFY_SSL = True
+COOKIE = None
 
 requests_log = logging.getLogger("requests.packages.urllib3")
 requests_log.setLevel(logging.DEBUG)
@@ -62,6 +64,11 @@ fh_debug.setFormatter(debug_formatter)
 logger.addHandler(ch)
 logger.addHandler(fh_debug)
 requests_log.addHandler(fh_debug)
+
+
+def request(http_method, url, json=None):
+    return requests.request(http_method, url=url, verify=VERIFY_SSL,
+                            json=json, cookies=COOKIE)
 
 
 def _build_path(old_path):
@@ -213,11 +220,6 @@ def system_command(parser):
                        help='Start the backup process in Software Factory')
     sub_cmd.add_parser('backup_get',
                        help='Download the latest backup from Software Factory')
-    restore = sub_cmd.add_parser('restore',
-                                 help='Restore Software Factory data')
-    restore.add_argument('--filename', metavar='absolute-path',
-                         required=True,
-                         help='The file downloaded from backup_get')
 
 
 def user_management_command(parser):
@@ -583,7 +585,7 @@ def build_url(*args):
     return '/'.join(s.strip('/') for s in args) + '/'
 
 
-def node_action(args, base_url, headers):
+def node_action(args, base_url):
 
     def print_pt(resp):
         for service in resp.json():
@@ -605,14 +607,11 @@ def node_action(args, base_url, headers):
     if args.subcommand not in ['list', 'add-user-key', 'hold', 'delete',
                                'image-list', ]:
         return False
-    auth_cookie = {'auth_pubtkt': get_cookie(args)}
     if args.subcommand == 'list':
         url = build_url(base_url, 'nodes/')
         if getattr(args, 'id'):
             url = build_url(url, 'id/%s' % args.id)
-        resp = requests.get(url, headers=headers,
-                            cookies=auth_cookie,
-                            verify=not args.insecure)
+        resp = request('get', url)
         if resp.ok and not JSON_OUTPUT:
             print_pt(resp)
             return True
@@ -624,13 +623,10 @@ def node_action(args, base_url, headers):
         except IOError as e:
             die(unicode(e))
         data = {'public_key': key_contents}
-        resp = requests.post(url, headers=headers, cookies=auth_cookie,
-                             data=data, verify=not args.insecure)
+        resp = request('post', url, json=data)
         if resp.ok:
             url = build_url(base_url, 'nodes/id/%s' % args.id)
-            resp = requests.get(url, headers=headers,
-                                cookies=auth_cookie,
-                                verify=not args.insecure)
+            resp = request('get', url)
             for service in resp.json():
                 cmd = "ssh -o StrictHostKeyChecking=no jenkins@%s"
                 cmd = cmd % resp.json()[service][0]['ip']
@@ -647,18 +643,14 @@ def node_action(args, base_url, headers):
                 die(resp.body)
     if args.subcommand == 'hold':
         url = build_url(base_url, 'nodes/id/%s' % args.id)
-        resp = requests.put(url, headers=headers,
-                            cookies=auth_cookie,
-                            verify=not args.insecure)
+        resp = request('put', url)
         if resp.ok and not JSON_OUTPUT:
             print_pt(resp)
             return True
         return response(resp)
     if args.subcommand == 'delete':
         url = build_url(base_url, 'nodes/id/%s' % args.id)
-        resp = requests.delete(url, headers=headers,
-                               cookies=auth_cookie,
-                               verify=not args.insecure)
+        resp = request('delete', url)
         if resp.ok and not JSON_OUTPUT:
             print_pt(resp)
             return True
@@ -671,9 +663,7 @@ def node_action(args, base_url, headers):
             url = build_url(url, '%s/' % args.provider)
         if getattr(args, 'image'):
             url = build_url(url, '%s/' % args.image)
-        resp = requests.get(url, headers=headers,
-                            cookies=auth_cookie,
-                            verify=not args.insecure)
+        resp = request('get', url)
         if resp.ok and not JSON_OUTPUT:
             for service in resp.json():
                 print "\nImage(s) managed by service %s:\n" % service
@@ -690,12 +680,11 @@ def node_action(args, base_url, headers):
         return response(resp)
 
 
-def job_action(args, base_url, headers):
+def job_action(args, base_url):
     if args.command != 'job':
         return False
     if args.subcommand not in ['list', 'logs', 'parameters', 'run', 'stop']:
         return False
-    auth_cookie = {'auth_pubtkt': get_cookie(args)}
     job_name = args.job_name
     if args.subcommand == 'list':
         url = build_url(base_url, 'jobs/%s' % job_name)
@@ -705,9 +694,7 @@ def job_action(args, base_url, headers):
             url += '?change=%s' % urllib.quote_plus(args.change)
             if getattr(args, 'patchset'):
                 url += '&patchset=%s' % urllib.quote_plus(args.patchset)
-        resp = requests.get(url, headers=headers,
-                            cookies=auth_cookie,
-                            verify=not args.insecure)
+        resp = request('get', url)
         if resp.ok and not JSON_OUTPUT:
             for service in resp.json():
                 print "\nJob(s) run by service %s:\n" % service
@@ -720,25 +707,19 @@ def job_action(args, base_url, headers):
         return response(resp)
     if args.subcommand == 'logs':
         url = build_url(base_url, 'jobs/%s/id/%s/logs' % (job_name, args.id))
-        resp = requests.get(url, headers=headers,
-                            cookies=auth_cookie,
-                            verify=not args.insecure)
+        resp = request('get', url)
         if resp.ok and not JSON_OUTPUT:
             if getattr(args, 'fetch'):
                 for service in resp.json():
                     url = resp.json()[service]['logs_url']
                     print "\nJob run by service %s, at %s:\n" % (service, url)
-                    print requests.get(url, headers=headers,
-                                       cookies=auth_cookie,
-                                       verify=not args.insecure).text
+                    print request('get', url).text
                 return True
         return response(resp)
     if args.subcommand == 'parameters':
         url = build_url(base_url,
                         'jobs/%s/id/%s/parameters' % (job_name, args.id))
-        resp = requests.get(url, headers=headers,
-                            cookies=auth_cookie,
-                            verify=not args.insecure)
+        resp = request('get', url)
         if resp.ok and not JSON_OUTPUT:
             for service in resp.json():
                 pt = PrettyTable(["name", "value"])
@@ -757,9 +738,7 @@ def job_action(args, base_url, headers):
             id = args.clone_from
             p_url = build_url(base_url,
                               'jobs/%s/id/%s/parameters' % (job_name, id))
-            resp = requests.get(p_url, headers=headers,
-                                cookies=auth_cookie,
-                                verify=not args.insecure)
+            resp = request('get', p_url)
             if resp.ok:
                 print resp.json()
                 # There's usually only one, careful if we bump it
@@ -771,10 +750,7 @@ def job_action(args, base_url, headers):
             else:
                 print "Could not fetch parameters for job %s:%s" % (job_name,
                                                                     id)
-        resp = requests.post(url, headers=headers,
-                             cookies=auth_cookie,
-                             json=data,
-                             verify=not args.insecure)
+        resp = request('post', url, json=data)
         if resp.ok and not JSON_OUTPUT:
             for service in resp.json():
                 print "\nJob(s) started by service %s:\n" % service
@@ -787,9 +763,7 @@ def job_action(args, base_url, headers):
         return response(resp)
     if args.subcommand == 'stop':
         url = build_url(base_url, 'jobs/%s/id/%s/' % (job_name, args.id))
-        resp = requests.delete(url, headers=headers,
-                               cookies=auth_cookie,
-                               verify=not args.insecure)
+        resp = request('delete', url)
         if resp.ok and not JSON_OUTPUT:
             for service in resp.json():
                 print "\nJob(s) stopped by service %s:\n" % service
@@ -802,13 +776,12 @@ def job_action(args, base_url, headers):
         return response(resp)
 
 
-def membership_action(args, base_url, headers):
+def membership_action(args, base_url):
     if args.command != 'membership':
         return False
 
     if args.subcommand not in ['add', 'remove', 'list']:
         return False
-    auth_cookie = {'auth_pubtkt': get_cookie(args)}
 
     if '/' in args.project:
         project_name = '===' + base64.urlsafe_b64encode(args.project)
@@ -819,9 +792,8 @@ def membership_action(args, base_url, headers):
     if args.subcommand == 'add':
         logger.info('Add member %s to project %s', args.user, args.project)
         if args.groups:
-            data = json.dumps({'groups': args.groups})
-        resp = requests.put(url, headers=headers, data=data,
-                            cookies=auth_cookie)
+            data = {'groups': args.groups}
+        resp = request('put', url, json=data)
         return response(resp)
 
     if args.subcommand == 'remove':
@@ -829,13 +801,13 @@ def membership_action(args, base_url, headers):
                     args.project)
         if args.group:
             url = build_url(url, args.group)
-        resp = requests.delete(url, headers=headers, cookies=auth_cookie)
+        resp = request('delete', url)
         return response(resp)
 
     return False
 
 
-def project_action(args, base_url, headers):
+def project_action(args, base_url):
     if args.command != 'project':
         return False
     if '/' in args.name:
@@ -858,25 +830,17 @@ def project_action(args, base_url, headers):
             if getattr(args, key):
                 info[word] = getattr(args, key)
 
-        params = {'headers': headers,
-                  'cookies': dict(auth_pubtkt=get_cookie(args))}
-
-        if len(info.keys()):
-            params['data'] = json.dumps(info)
-
-        resp = requests.put(url, **params)
+        resp = request('put', url, json=info)
 
     elif args.subcommand == 'delete':
-        resp = requests.delete(url, headers=headers,
-                               cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('delete', url)
     else:
         return False
 
     return response(resp)
 
 
-def tests_action(args, base_url, headers):
-
+def tests_action(args, base_url):
     if args.command != 'tests':
         return False
 
@@ -889,12 +853,11 @@ def tests_action(args, base_url, headers):
     else:
         data['project-scripts'] = True
 
-    resp = requests.put(url, data=json.dumps(data), headers=headers,
-                        cookies=dict(auth_pubtkt=get_cookie(args)))
+    resp = request('put', url, json=data)
     return response(resp)
 
 
-def pages_action(args, base_url, headers):
+def pages_action(args, base_url):
     if args.command != 'pages':
         return False
 
@@ -904,26 +867,21 @@ def pages_action(args, base_url, headers):
     data = {}
     if args.subcommand == 'update':
         data['url'] = args.dest
-        resp = requests.post(url, data=json.dumps(data), headers=headers,
-                             cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('post', url, json=data)
     if args.subcommand == 'get':
-        resp = requests.get(url, headers=headers,
-                            cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('get', url)
     if args.subcommand == 'delete':
-        resp = requests.delete(url, headers=headers,
-                               cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('delete', url)
     return response(resp)
 
 
-def backup_action(args, base_url, headers):
+def backup_action(args, base_url):
     if args.command != 'system':
         return False
 
     url = build_url(base_url, 'backup')
-    params = {'headers': headers,
-              'cookies': dict(auth_pubtkt=get_cookie(args))}
     if args.subcommand == 'backup_get':
-        resp = requests.get(url, **params)
+        resp = request('get', url)
         if resp.status_code != 200:
             die("backup_get failed with status_code " + str(resp.status_code))
         chunk_size = 1024
@@ -933,23 +891,13 @@ def backup_action(args, base_url, headers):
         return True
 
     elif args.subcommand == 'backup_start':
-        resp = requests.post(url, **params)
-        return response(resp)
-
-    elif args.subcommand == 'restore':
-        url = build_url(base_url, 'restore')
-        filename = args.filename
-        if not os.path.isfile(filename):
-            die("file %s does not exist" % filename)
-        files = {'file': open(filename, 'rb')}
-        resp = requests.post(url, headers=headers, files=files,
-                             cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('post', url)
         return response(resp)
 
     return False
 
 
-def gerrit_api_htpasswd_action(args, base_url, headers):
+def gerrit_api_htpasswd_action(args, base_url):
     url = base_url + '/htpasswd'
     if args.command != 'gerrit_api_htpasswd':
         return False
@@ -958,17 +906,15 @@ def gerrit_api_htpasswd_action(args, base_url, headers):
         return False
 
     if args.subcommand == 'generate_password':
-        resp = requests.put(url, headers=headers,
-                            cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('put', url)
         return response(resp)
 
     elif args.subcommand == 'delete_password':
-        resp = requests.delete(url, headers=headers,
-                               cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('delete', url)
         return response(resp, quiet=True)
 
 
-def github_action(args, base_url, headers):
+def github_action(args, base_url):
     if args.subcommand not in ['create-repo', 'delete-repo',
                                'deploy-key', 'fork-repo']:
         return False
@@ -982,13 +928,13 @@ def github_action(args, base_url, headers):
     }
 
     if args.subcommand == 'create-repo':
-        data = json.dumps({"name": args.name, "private": False})
+        data = {"name": args.name, "private": False}
 
         if args.org:
             url = "https://api.github.com/orgs/%s/repos" % args.org
         else:
             url = "https://api.github.com/user/repos"
-        resp = requests.post(url, headers=headers, data=data)
+        resp = requests.post(url, headers=headers, json=data)
         if resp.status_code == requests.codes.created:
             print "Github repo %s created." % args.name
         return response(resp, quiet=True)
@@ -1004,18 +950,17 @@ def github_action(args, base_url, headers):
         data = None
         if args.org:
             data = {'organization': args.org}
-        data = json.dumps(data)
-        resp1 = requests.post(url, headers=headers, data=data)
+        resp1 = requests.post(url, headers=headers, json=data)
         if resp1.status_code == requests.codes.accepted:
             print "Github repo %s forked." % repo
         if args.name:
-            data = json.dumps({'name': args.name})
+            data = {'name': args.name}
             if args.org:
                 owner = args.org
             else:
                 owner = resp1.json()["owner"]["login"]
             url = "https://api.github.com/repos/%s/%s" % (owner, repo)
-            resp2 = requests.patch(url, headers=headers, data=data)
+            resp2 = requests.patch(url, headers=headers, json=data)
             if resp2.status_code == requests.codes.ok:
                 print "Github repo renamed from %s to %s" % (repo, args.name)
             return response(resp2, quiet=True)
@@ -1049,14 +994,14 @@ def github_action(args, base_url, headers):
             with open(args.keyfile, 'r') as f:
                 sshkey = f.read()
 
-            data = json.dumps(
-                {"title": "%s ssh key" % owner,
-                 "key": sshkey, "read_only": False}
-            )
+            data = {
+                "title": "%s ssh key" % owner,
+                "key": sshkey,
+                "read_only": False}
 
             url = "https://api.github.com/repos/%s/%s/keys" % (
                 owner, args.name)
-            resp = requests.post(url, headers=headers, data=data)
+            resp = requests.post(url, headers=headers, json=data)
 
             if resp.status_code == requests.codes.created:
                 print "SSH deploy key %s added to Github repo %s." % (
@@ -1066,14 +1011,13 @@ def github_action(args, base_url, headers):
     return False
 
 
-def user_management_action(args, base_url, headers):
+def user_management_action(args, base_url):
     if args.command != 'user':
         return False
     if args.subcommand not in ['create', 'update', 'delete']:
         return False
     url = build_url(base_url, 'user', args.username)
     if args.subcommand in ['create', 'update']:
-        headers['Content-Type'] = 'application/json'
         password = None
         if args.password is None:
             # -p option has been passed by with no value
@@ -1090,8 +1034,7 @@ def user_management_action(args, base_url, headers):
             info['fullname'] = ' '.join(args.fullname)
         if password:
             info['password'] = password
-        resp = requests.post(url, headers=headers, data=json.dumps(info),
-                             cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('post', url, json=info)
         if args.subcommand == 'create' and resp.ok and not JSON_OUTPUT:
             pt = PrettyTable(["Username", "Fullname", "Email"])
             i = resp.json()
@@ -1100,19 +1043,17 @@ def user_management_action(args, base_url, headers):
             print pt
             return True
     if args.subcommand == 'delete':
-        resp = requests.delete(url, headers=headers,
-                               cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('delete', url)
     return response(resp)
 
 
-def services_users_management_action(args, base_url, headers):
+def services_users_management_action(args, base_url):
     if args.command != 'sf_user':
         return False
     if args.subcommand not in ['create', 'list', 'delete']:
         return False
     url = build_url(base_url, 'services_users')
     if args.subcommand in ['create', 'delete']:
-        headers['Content-Type'] = 'application/json'
         info = {}
         if getattr(args, 'email', None):
             info['email'] = args.email
@@ -1121,14 +1062,11 @@ def services_users_management_action(args, base_url, headers):
         if getattr(args, 'fullname', None):
             info['full_name'] = ' '.join(args.fullname)
     if args.subcommand == 'create':
-        resp = requests.post(url, headers=headers, data=json.dumps(info),
-                             cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('post', url, json=info)
     elif args.subcommand == 'delete':
-        resp = requests.delete(url, headers=headers, data=json.dumps(info),
-                               cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('delete', url, json=info)
     elif args.subcommand == 'list':
-        resp = requests.get(url, headers=headers,
-                            cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('get', url)
         if resp.ok and not JSON_OUTPUT:
             pt = PrettyTable(["Id", "Username", "Fullname", "Email",
                               "Cauth_id"])
@@ -1143,7 +1081,7 @@ def services_users_management_action(args, base_url, headers):
     return response(resp)
 
 
-def groups_management_action(args, base_url, headers):
+def groups_management_action(args, base_url):
     if args.command != 'group':
         return False
     if args.subcommand not in ['create', 'list', 'delete', 'remove', 'add']:
@@ -1153,8 +1091,7 @@ def groups_management_action(args, base_url, headers):
             url = build_url(base_url, 'group')
         else:
             url = build_url(base_url, 'group', args.name)
-        resp = requests.get(url, headers=headers,
-                            cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('get', url)
         if resp.ok and not JSON_OUTPUT:
             if not args.name:
                 pt = PrettyTable(["Group name", "Description", "Users"])
@@ -1172,28 +1109,24 @@ def groups_management_action(args, base_url, headers):
             return response(resp)
     if args.subcommand == 'create':
         url = build_url(base_url, 'group', urllib.quote_plus(args.name))
-        data = json.dumps({'description': args.description})
-        resp = requests.put(url, data=data, headers=headers,
-                            cookies=dict(auth_pubtkt=get_cookie(args)))
+        data = {'description': args.description}
+        resp = request('put', url, json=data)
         return response(resp, quiet=True)
     if args.subcommand == 'delete':
         url = build_url(base_url, 'group', urllib.quote_plus(args.name))
-        resp = requests.delete(url, headers=headers,
-                               cookies=dict(auth_pubtkt=get_cookie(args)))
+        resp = request('delete', url)
         return response(resp, quiet=True)
     if args.subcommand in ['add', 'remove']:
         url = build_url(base_url, 'group', urllib.quote_plus(args.name))
-        resp = requests.get(url, headers=headers,
-                            cookies=dict(auth_pubtkt=get_cookie(args)))
-        if resp.ok:
+        resp = request('get', url)
+        if resp.ok and resp.json():
             emails = set([v['email'] for v in resp.json().values()[0]])
             if args.subcommand == 'add':
                 new = set(args.email).union(emails)
             else:
                 new = set(emails).difference(args.email)
-            data = json.dumps({'members': list(new)})
-            resp = requests.post(url, data=data, headers=headers,
-                                 cookies=dict(auth_pubtkt=get_cookie(args)))
+            data = {'members': list(new)}
+            resp = request('post', url, json=data)
         return response(resp, quiet=True)
 
 
@@ -1204,6 +1137,7 @@ def main():
     command_options(parser)
     args = parser.parse_args()
     globals()['JSON_OUTPUT'] = args.json
+    globals()['VERIFY_SSL'] = not args.insecure
 
     # Set local url and auth if sfconfig.yaml is present
     sfconfig = None
@@ -1273,27 +1207,28 @@ def main():
         userid = args.cookie.split('%3B')[0].split('%3D')[1]
         logger.info("Authenticating as %s" % userid)
 
-    headers = {}
     if args.auth is not None and ":" not in args.auth:
         password = getpass.getpass("%s's password: " % args.auth)
         args.auth = "%s:%s" % (args.auth, password)
-        headers = {'Authorization': 'Basic ' + base64.b64encode(args.auth)}
+
+    globals()['COOKIE'] = {'auth_pubtkt': get_cookie(args)}
 
     if args.insecure:
         import urllib3
         urllib3.disable_warnings()
-    if not(project_action(args, base_url, headers) or
-           backup_action(args, base_url, headers) or
-           gerrit_api_htpasswd_action(args, base_url, headers) or
-           user_management_action(args, base_url, headers) or
-           membership_action(args, base_url, headers) or
-           tests_action(args, base_url, headers) or
-           pages_action(args, base_url, headers) or
-           github_action(args, base_url, headers) or
-           services_users_management_action(args, base_url, headers) or
-           groups_management_action(args, base_url, headers) or
-           job_action(args, base_url, headers) or
-           node_action(args, base_url, headers)):
+
+    if not(project_action(args, base_url) or
+           backup_action(args, base_url) or
+           gerrit_api_htpasswd_action(args, base_url) or
+           user_management_action(args, base_url) or
+           membership_action(args, base_url) or
+           tests_action(args, base_url) or
+           pages_action(args, base_url) or
+           github_action(args, base_url) or
+           services_users_management_action(args, base_url) or
+           groups_management_action(args, base_url) or
+           job_action(args, base_url) or
+           node_action(args, base_url)):
         die("ManageSF failed to execute your command")
 
 
