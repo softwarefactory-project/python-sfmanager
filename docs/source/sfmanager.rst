@@ -344,22 +344,6 @@ the following command
 A file called "sf_backup.tar.gz" will be created in the local directory.
 
 
-Restore a backup
-^^^^^^^^^^^^^^^^
-
-SF exposes ways to restore a backup of all the user data store in your
-SF installation. This backup can be used in case of disaster to quickly
-recover user data on the same or other SF installation (in the same version).
-
-Only the SF administrator can restore a backup.
-
-SF allows you to restore a backup in one of the following way.
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           system restore --filename sf_backup.tar.gz
-
 Using GPG to encrypt and decrypt backups
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

@@ -284,46 +284,6 @@ class TestMembershipAction(BaseFunctionalTest):
         self.assert_secure('delete', args, sfmanager.membership_action, url)
 
 
-class TestGroupActions(BaseFunctionalTest):
-    def test_group_create(self):
-        args = self.default_args
-        data = {'description': 'desc'}
-        cmd = 'group create -n grp1 -d {description}'
-        args += cmd.format(**data).split()
-        expected_url = self.base_url + 'group/grp1/'
-        self.assert_secure('put', args, sfmanager.groups_management_action,
-                           expected_url, data)
-
-    def test_group_delete(self):
-        args = self.default_args
-        cmd = 'group delete -n grp1'
-        args += cmd.split()
-        expected_url = self.base_url + 'group/grp1/'
-        self.assert_secure('delete', args, sfmanager.groups_management_action,
-                           expected_url)
-
-    def test_group_get_all(self):
-        args = self.default_args
-        cmd = 'group list'
-        args += cmd.split()
-        expected_url = self.base_url + 'group/'
-        self.assert_secure('get', args, sfmanager.groups_management_action,
-                           expected_url,
-                           returned_json={'grp1': {'description': "",
-                                                   'members': []}})
-
-    def test_group_get_one(self):
-        args = self.default_args
-        cmd = 'group list -n grp1'
-        args += cmd.split()
-        expected_url = self.base_url + 'group/grp1/'
-        self.assert_secure('get', args, sfmanager.groups_management_action,
-                           expected_url,
-                           returned_json={'grp1': [{'email': "",
-                                                    'username': "",
-                                                    'name': ""}]})
-
-
 class TestUserActions(BaseFunctionalTest):
     def test_user_create(self):
         args = self.default_args

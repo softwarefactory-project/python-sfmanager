@@ -283,35 +283,6 @@ def sf_user_management_command(parser):
                                               "either this or username)"))
 
 
-def group_management_command(parser):
-    g = parser.add_parser('group',
-                          help='Manage standalone groups')
-    g_sub = g.add_subparsers(dest='subcommand')
-    create = g_sub.add_parser('create', help='create a group on SF')
-    create.add_argument('--name', '-n', metavar='groupname',
-                        required=True, help="A unique group's name")
-    create.add_argument('--description', '-d', metavar='My group desc',
-                        required=True, help="The group's description")
-    glist = g_sub.add_parser('list', help="list all standalone groups"
-                                          " or group' members")
-    glist.add_argument('--name', '-n', help='group name to list members',
-                       required=False, default=None)
-    delete = g_sub.add_parser('delete', help='delete a group from SF')
-    delete.add_argument('--name', '-n', metavar='groupname',
-                        required=True, help="the group's name")
-    add = g_sub.add_parser('add', help='Add members to a group')
-    add.add_argument('--name', '-n', metavar='groupname',
-                     required=True, help="the group's name")
-    add.add_argument('--email', '-e', nargs='*', metavar='user1@sftests.com',
-                     required=True, help="user's email(s) to include")
-    remove = g_sub.add_parser('remove', help='Remove members from a group')
-    remove.add_argument('--name', '-n', metavar='groupname',
-                        required=True, help="the group's name")
-    remove.add_argument('--email', '-e', nargs='*',
-                        metavar='user1@sftests.com',
-                        required=True, help="user's email(s) to remove")
-
-
 def pages_command(topparser):
     pages_parser = topparser.add_parser('pages', help='pages related commands')
     sub_cmds = pages_parser.add_subparsers(dest='subcommand')
@@ -512,7 +483,6 @@ def command_options(parser):
     sf_user_management_command(sp)
     gerrit_api_htpassword_command(sp)
     membership_command(sp)
-    group_management_command(sp)
     system_command(sp)
     tests_command(sp)
     pages_command(sp)
@@ -1081,55 +1051,6 @@ def services_users_management_action(args, base_url):
     return response(resp)
 
 
-def groups_management_action(args, base_url):
-    if args.command != 'group':
-        return False
-    if args.subcommand not in ['create', 'list', 'delete', 'remove', 'add']:
-        return False
-    if args.subcommand == 'list':
-        if not args.name:
-            url = build_url(base_url, 'group')
-        else:
-            url = build_url(base_url, 'group', args.name)
-        resp = request('get', url)
-        if resp.ok and not JSON_OUTPUT:
-            if not args.name:
-                pt = PrettyTable(["Group name", "Description", "Users"])
-                for k, v in resp.json().items():
-                    pt.add_row(
-                        [k, v['description'],
-                         ", ".join([user['name'] for user in v['members']])])
-            else:
-                pt = PrettyTable(["Username", "Name", "Email"])
-                for v in resp.json().values()[0]:
-                    pt.add_row([v['username'], v['name'], v['email']])
-            print pt
-            return True
-        else:
-            return response(resp)
-    if args.subcommand == 'create':
-        url = build_url(base_url, 'group', urllib.quote_plus(args.name))
-        data = {'description': args.description}
-        resp = request('put', url, json=data)
-        return response(resp, quiet=True)
-    if args.subcommand == 'delete':
-        url = build_url(base_url, 'group', urllib.quote_plus(args.name))
-        resp = request('delete', url)
-        return response(resp, quiet=True)
-    if args.subcommand in ['add', 'remove']:
-        url = build_url(base_url, 'group', urllib.quote_plus(args.name))
-        resp = request('get', url)
-        if resp.ok and resp.json():
-            emails = set([v['email'] for v in resp.json().values()[0]])
-            if args.subcommand == 'add':
-                new = set(args.email).union(emails)
-            else:
-                new = set(emails).difference(args.email)
-            data = {'members': list(new)}
-            resp = request('post', url, json=data)
-        return response(resp, quiet=True)
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="Software Factory CLI")
@@ -1226,7 +1147,6 @@ def main():
            pages_action(args, base_url) or
            github_action(args, base_url) or
            services_users_management_action(args, base_url) or
-           groups_management_action(args, base_url) or
            job_action(args, base_url) or
            node_action(args, base_url)):
         die("ManageSF failed to execute your command")
