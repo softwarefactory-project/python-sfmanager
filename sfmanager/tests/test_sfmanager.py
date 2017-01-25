@@ -256,7 +256,7 @@ class TestNodesActions(BaseFunctionalTest):
                 POST.assert_called_with(expected_url,
                                         headers=self.headers,
                                         cookies=self.cookies,
-                                        json=json.dumps(d),
+                                        data=d,
                                         verify=not parsed.insecure)
         try:
             os.remove(tmpfile.name)

@@ -625,9 +625,9 @@ def node_action(args, base_url, headers):
             die(unicode(e))
         data = {'public_key': key_contents}
         resp = requests.post(url, headers=headers, cookies=auth_cookie,
-                             json=json.dumps(data), verify=not args.insecure)
+                             data=data, verify=not args.insecure)
         if resp.ok:
-            url = build_url(url, 'id/%s' % args.id)
+            url = build_url(base_url, 'nodes/id/%s' % args.id)
             resp = requests.get(url, headers=headers,
                                 cookies=auth_cookie,
                                 verify=not args.insecure)
@@ -665,14 +665,14 @@ def node_action(args, base_url, headers):
         return response(resp)
     if args.subcommand == 'image-list':
         url = build_url(base_url, 'nodes/images/')
-        parameters = {}
+        if getattr(args, 'image') and not getattr(args, 'provider'):
+            die('please add a provider name')
         if getattr(args, 'provider'):
-            parameters['provider_name'] = args.provider
+            url = build_url(url, '%s/' % args.provider)
         if getattr(args, 'image'):
-            parameters['image'] = args.image
+            url = build_url(url, '%s/' % args.image)
         resp = requests.get(url, headers=headers,
                             cookies=auth_cookie,
-                            params=parameters,
                             verify=not args.insecure)
         if resp.ok and not JSON_OUTPUT:
             for service in resp.json():
