@@ -20,6 +20,7 @@ import glob
 import json
 import logging
 import os
+import re
 import requests
 import sqlite3
 import sys
@@ -447,6 +448,16 @@ def response(resp, quiet=False):
     if resp.status_code // 100 == 4:
         if resp.status_code == 409:
             msg = 'RESOURCE CONFLICT\n%s' % resp.text
+        elif resp.status_code == 401:
+            msg = ('You are not authorized to perform this action. Please '
+                   'contact an administrator of the platform if you believe '
+                   'this should not be the case.')
+            try:
+                policy = re.search('Failure to comply with policy (.+)\n',
+                                   resp.text).groups()[0]
+            except:
+                policy = "UNKNOWN"
+            msg += '\n\nPolicy enforced: %s' % policy
         else:
             msg = 'NOT FOUND\n%s' % resp.text
         die(msg)
