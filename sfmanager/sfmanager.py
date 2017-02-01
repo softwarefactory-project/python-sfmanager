@@ -15,7 +15,6 @@
 # under the License.
 
 import argparse
-import base64
 import getpass
 import glob
 import json
@@ -187,32 +186,6 @@ def default_arguments(parser):
                         'disabled by default')
 
 
-def membership_command(parser):
-    def membership_args(x):
-        x.add_argument('--project', metavar='project-name', required=True,
-                       help='The project name')
-        x.add_argument('--user', metavar='user@example.com', required=True,
-                       help="The user's email registered in Software Factory")
-
-    root = parser.add_parser('membership',
-                             help='Project memberships commands')
-    sub_cmd = root.add_subparsers(dest='subcommand')
-    add = sub_cmd.add_parser('add', help="Add a user to a project's group(s)")
-    membership_args(add)
-    add.add_argument('--groups', nargs='+',
-                     metavar='[core-group|dev-group|ptl-group]',
-                     required=True,
-                     help="The project's group(s)",
-                     choices=['core-group', 'dev-group', 'ptl-group'])
-
-    remove = sub_cmd.add_parser('remove',
-                                help="Remove a user from project's group")
-    membership_args(remove)
-    remove.add_argument('--group', metavar='[core-group|dev-group|ptl-group]',
-                        help="The project's group(s)",
-                        choices=['core-group', 'dev-group', 'ptl-group'])
-
-
 def system_command(parser):
     root = parser.add_parser('system', help='system level commands')
     sub_cmd = root.add_subparsers(dest='subcommand')
@@ -306,32 +279,6 @@ def pages_command(topparser):
     get.add_argument('--name', '-n',
                      required=True,
                      help='The project\'s name')
-
-
-def project_command(sp):
-    pc = sp.add_parser('project',
-                       help='project-related commands')
-    spc = pc.add_subparsers(dest="subcommand")
-    cp = spc.add_parser('create')
-    cp.add_argument('--name', '-n', nargs='?', metavar='project-name',
-                    required=True)
-    cp.add_argument('--description', '-d', nargs='?',
-                    metavar='project-description')
-    cp.add_argument('--upstream', '-u', nargs='?', metavar='GIT link')
-    cp.add_argument('--upstream-ssh-key', metavar='upstream-ssh-key',
-                    help='SSH key for authentication against the upstream ' +
-                    'repository (without a passphrase)')
-    cp.add_argument('--private', action='store_true',
-                    help='set if the project is private')
-    cp.add_argument('--readonly', action='store_true',
-                    help='set if patch merging should be disabled')
-    cp.add_argument('--add-branches', action='store_true',
-                    help='include all upstream git branches to the project'
-                    ' repository')
-
-    dp = spc.add_parser('delete')
-    dp.add_argument('--name', '-n', nargs='?', metavar='project-name',
-                    required=True)
 
 
 def tests_command(parser):
@@ -478,11 +425,9 @@ def node_command(parser):
 
 def command_options(parser):
     sp = parser.add_subparsers(dest="command")
-    project_command(sp)
     user_management_command(sp)
     sf_user_management_command(sp)
     gerrit_api_htpassword_command(sp)
-    membership_command(sp)
     system_command(sp)
     tests_command(sp)
     pages_command(sp)
@@ -744,70 +689,6 @@ def job_action(args, base_url):
                 print pt
             return True
         return response(resp)
-
-
-def membership_action(args, base_url):
-    if args.command != 'membership':
-        return False
-
-    if args.subcommand not in ['add', 'remove', 'list']:
-        return False
-
-    if '/' in args.project:
-        project_name = '===' + base64.urlsafe_b64encode(args.project)
-    else:
-        project_name = args.project
-    url = build_url(base_url, 'project/membership',
-                    project_name, urllib.quote_plus(args.user))
-    if args.subcommand == 'add':
-        logger.info('Add member %s to project %s', args.user, args.project)
-        if args.groups:
-            data = {'groups': args.groups}
-        resp = request('put', url, json=data)
-        return response(resp)
-
-    if args.subcommand == 'remove':
-        logger.info('Remove member %s from project %s', args.user,
-                    args.project)
-        if args.group:
-            url = build_url(url, args.group)
-        resp = request('delete', url)
-        return response(resp)
-
-    return False
-
-
-def project_action(args, base_url):
-    if args.command != 'project':
-        return False
-    if '/' in args.name:
-        name = '===' + base64.urlsafe_b64encode(args.name)
-    else:
-        name = args.name
-    url = build_url(base_url, "project", name)
-    if args.subcommand == 'create':
-        if getattr(args, 'upstream_ssh_key'):
-            with open(args.upstream_ssh_key) as ssh_key_file:
-                args.upstream_ssh_key = ssh_key_file.read()
-        substitute = {'description': 'description',
-                      'upstream': 'upstream',
-                      'upstream_ssh_key': 'upstream-ssh-key',
-                      'private': 'private',
-                      'readonly': 'readonly',
-                      'add_branches': 'add-branches'}
-        info = {}
-        for key, word in substitute.iteritems():
-            if getattr(args, key):
-                info[word] = getattr(args, key)
-
-        resp = request('put', url, json=info)
-
-    elif args.subcommand == 'delete':
-        resp = request('delete', url)
-    else:
-        return False
-
-    return response(resp)
 
 
 def tests_action(args, base_url):
@@ -1138,11 +1019,9 @@ def main():
         import urllib3
         urllib3.disable_warnings()
 
-    if not(project_action(args, base_url) or
-           backup_action(args, base_url) or
+    if not(backup_action(args, base_url) or
            gerrit_api_htpasswd_action(args, base_url) or
            user_management_action(args, base_url) or
-           membership_action(args, base_url) or
            tests_action(args, base_url) or
            pages_action(args, base_url) or
            github_action(args, base_url) or

@@ -13,7 +13,6 @@
 # under the License.
 
 import argparse
-import base64
 import os
 from mock import patch
 from tempfile import mkstemp, NamedTemporaryFile
@@ -65,40 +64,6 @@ class BaseFunctionalTest(TestCase):
                                               json=expected_data)
                 else:
                     method.assert_called_with(method_verb, expected_url)
-
-
-class TestProjectUserAction(BaseFunctionalTest):
-    def test_create_project(self):
-        args = self.default_args
-        args += 'project create --name proj1'.split()
-        expected_url = self.base_url + 'project/proj1/'
-        self.assert_secure('put', args,
-                           sfmanager.project_action, expected_url, {})
-
-    def test_create_project_named_with_namespace(self):
-        args = self.default_args
-        args += 'project create --name ns1/proj1'.split()
-        name = '===' + base64.urlsafe_b64encode('ns1/proj1')
-        expected_url = self.base_url + 'project/%s/' % name
-        self.assert_secure('put', args,
-                           sfmanager.project_action, expected_url, {})
-
-    def test_create_project_with_branches(self):
-        cmd = ('project create --name proj2 '
-               '--upstream ssh://tests.dom/test.git --add-branches')
-        args = self.default_args
-        args += cmd.split()
-        excepted_url = self.base_url + 'project/proj2/'
-        self.assert_secure('put', args, sfmanager.project_action, excepted_url,
-                           {'upstream': 'ssh://tests.dom/test.git',
-                            'add-branches': True})
-
-    def test_delete_project(self):
-        args = self.default_args
-        args += 'project delete --name proj1'.split()
-        expected_url = self.base_url + 'project/proj1/'
-        self.assert_secure('delete', args,
-                           sfmanager.project_action, expected_url)
 
 
 class TestTestsActions(BaseFunctionalTest):
@@ -252,36 +217,6 @@ class TestNodesActions(BaseFunctionalTest):
             os.remove(tmpfile.name)
         except IOError:
             pass
-
-
-class TestMembershipAction(BaseFunctionalTest):
-    def test_project_add_user_to_groups(self):
-        args = self.default_args
-        project_name = 'ns2/prj1'
-        c = 'membership add --user u --project %s' % project_name
-        c += ' --groups dev-group ptl-group'
-        args += c.split()
-        encoded_name = '===' + base64.urlsafe_b64encode(project_name)
-        url = self.base_url + 'project/membership/%s/u/' % encoded_name
-        self.assert_secure('put', args,
-                           sfmanager.membership_action, url,
-                           {'groups': ['dev-group', 'ptl-group']})
-
-    def test_project_remove_user_from_all_groups(self):
-        args = self.default_args
-        cmd = 'membership remove --user user1 --project ns2/prj1'
-        args += cmd.split()
-        encoded_name = '===' + base64.urlsafe_b64encode('ns2/prj1')
-        url = self.base_url + 'project/membership/%s/user1/' % encoded_name
-        self.assert_secure('delete', args, sfmanager.membership_action,
-                           url)
-
-    def test_project_remove_user_from_group(self):
-        args = self.default_args
-        cmd = 'membership remove --user u1 --project proj1 --group dev-group'
-        args += cmd.split()
-        url = self.base_url + 'project/membership/proj1/u1/dev-group/'
-        self.assert_secure('delete', args, sfmanager.membership_action, url)
 
 
 class TestUserActions(BaseFunctionalTest):
