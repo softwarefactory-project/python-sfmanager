@@ -66,24 +66,6 @@ class BaseFunctionalTest(TestCase):
                     method.assert_called_with(method_verb, expected_url)
 
 
-class TestTestsActions(BaseFunctionalTest):
-    def test_init_test_project(self):
-        args = self.default_args
-        args += 'tests init --project toto'.split()
-        expected_url = self.base_url + 'tests/toto/'
-        self.assert_secure('put', args,
-                           sfmanager.tests_action, expected_url,
-                           {'project-scripts': True})
-
-    def test_init_test_project_no_scripts(self):
-        args = self.default_args
-        args += 'tests init --project toto --no-scripts'.split()
-        expected_url = self.base_url + 'tests/toto/'
-        self.assert_secure('put', args,
-                           sfmanager.tests_action, expected_url,
-                           {'project-scripts': False})
-
-
 class TestJobsActions(BaseFunctionalTest):
     def test_list_jobs(self):
         args = self.default_args
