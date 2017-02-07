@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "SFMANAGER" "1" "May 24, 2016" "0.1" "sfmanager (SF client)"
+.TH "SFMANAGER" "1" "February 07, 2017" "0.1" "sfmanager (SF client)"
 .SH NAME
 sfmanager \- sfmanager Documentation
 .
@@ -30,10 +30,36 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
 .sp
 This documentation describes the shell utility \fBsfmanager\fP, which is a CLI for
-the managesf REST API interface in Software Factory. It can be used to
-administrate Software Factory, for example to manage projects and users.
+the managesf REST API interface in Software Factory..
 .SH INTRODUCTION
 .SS Global options
 .sp
@@ -58,176 +84,13 @@ Disable SSL certificate verification. Enabled by default
 .B \-\-debug
 Enable debug messages in console. Disabled by default
 .UNINDENT
-.SS Example usage
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          project create
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SS Help
-.sp
-Help is always available using the argument \(aq\-h\(aq:
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager project \-h
-usage: sfmanager project [\-h]
-                         {delete_user,add_user,list_active_users,create,delete}
-                         ...
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SH PROJECT MANAGEMENT
-.SS Create new project
-.sp
-SF exposes ways to create and initialize projects in Redmine and Gerrit
-simultaneously. Initializing a project involves setting up the ACL and
-initializing the source repository.
-.sp
-By default only the SF administrator will be able to create a project.
-This can be unlock in the Software Factory configuration (sfconfig.yaml) to
-open the project creation feature to every registered users.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          project create \-\-name <project\-name>
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-There are a few more options available in case you want to customize the
-project.
-.INDENT 0.0
-.TP
-.B \-\-description [project\-description], \-d [project\-description]
-An optional description of the project.
-.TP
-.B \-\-upstream [GIT link], \-u [GIT link]
-Uses the given repository to initalize the project, for example to reuse an existing Github repository
-.TP
-.B \-\-upstream\-ssh\-key upstream\-ssh\-key
-SSH key for upstream repository if authentication is required
-.TP
-.B \-\-private
-Mark project as private. In that case only members of the dev, core or ptl
-group are allowed to access the project.
-.TP
-.B \-\-readonly
-Set specific ALCs to that project to forbid patch merging. This is
-a specific option to create a project that suppose to be a mirror
-of another one and where you just want to store patches (eg. for packaging).
-.UNINDENT
-.SS Delete Project
-.sp
-SF exposes ways to delete projects and the groups associated with the project in
-Redmine and Gerrit simultaneously.
-.sp
-For any project, only the PTLs shall have the permission to delete it.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          project delete \-\-name <project\-name>
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SH GROUP MANAGEMENT
-.SS Default groups
-.sp
-When a project is created a few default project groups are created. To modify
-these groups a user needs to be at least in the same group of users.
-.INDENT 0.0
-.TP
-.B projectname\-ptl
-Group of PTLs. Members can add other users to all groups.
-.TP
-.B projectname\-core
-Group of core reviewers. Members can add other users to the groups
-projectname\-core and projectname\-dev
-.TP
-.B projectname\-dev
-Group of developers, required when project is private. Members can not add
-any other user to any group.
-.UNINDENT
-.SS List project users
-.sp
-Currently only lists all known users. This command is useful for the "add"
-subcommand of the membership command or for \fI\-\-ptl\-group\fP, \fI\-\-core\-group\fP,
-\fI\-\-dev\-group\fP of the project create options.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          membership list
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SS Add user to project groups
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          membership add \-\-user user1@tests.dom \-\-project p1 \e
-          \-\-groups ptl\-group core\-group
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SS Remove user from project groups
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          membership remove \-\-user user1@tests.dom \-\-project p1 \e
-          \-\-group ptl\-group
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.sp
-If the request does not provide a specific group to delete the user from, SF
-will remove the user from all groups associated to a project.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          membership remove \-\-user user1@tests.dom \-\-project p1
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
 .SH USER MANAGEMENT
 .sp
 These commands manage the local users, that are not using external
 authentication systems like Github.
 .SS Add user
 .sp
-Creates a new local user and registers the user in Gerrit and Redmine
+Creates a new user in the internal backend and registers the user in Gerrit and Redmine
 .INDENT 0.0
 .TP
 .B \-\-username [username], \-u [username]
@@ -289,7 +152,7 @@ sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
 .fi
 .UNINDENT
 .UNINDENT
-.SH REGISTERED USERS MANAGEMENT
+.SH REGISTERED USER MANAGEMENT
 .sp
 These commands manage the global users. Please note that these commands do not
 modify users on Software Factory\(aqs local authentication backend.
@@ -308,7 +171,6 @@ The user email
 .TP
 .B \-\-fullname [John Doe], \-f [John Doe]
 The user\(aqs full name, defaults to username
-.TP
 .UNINDENT
 .INDENT 0.0
 .INDENT 3.5
@@ -340,10 +202,37 @@ sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
 .fi
 .UNINDENT
 .UNINDENT
-.SS List registered user
+.sp
+or
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+          sf_user delete \-\-email jdoe@users.com
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS List registered users
 .sp
 This command lists all the users currently registered (ie who have logged in at
 least once) on Software Factory.
+.sp
+For each user, the following information is returned:
+.INDENT 0.0
+.IP \(bu 2
+the username
+.IP \(bu 2
+the user\(aqs full name
+.IP \(bu 2
+the user\(aqs email
+.IP \(bu 2
+the user\(aqs internal id within manageSF
+.IP \(bu 2
+the user\(aqs id within cauth, the SSO system
+.UNINDENT
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -397,26 +286,6 @@ sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
 .UNINDENT
 .sp
 A file called "sf_backup.tar.gz" will be created in the local directory.
-.SS Restore a backup
-.sp
-SF exposes ways to restore a backup of all the user data store in your
-SF installation. This backup can be used in case of disaster to quickly
-recover user data on the same or other SF installation (in the same version).
-.sp
-Only the SF administrator can restore a backup.
-.sp
-SF allows you to restore a backup in one of the following way.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-          system restore \-\-filename sf_backup.tar.gz
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
 .SS Using GPG to encrypt and decrypt backups
 .sp
 It is recommended to store the backup files encrypted when using external
@@ -433,10 +302,14 @@ To create this key, do the following:
 .ft C
 gpg \-\-gen\-key  # Use "sfadmin" as name when creating the key
 gpg \-\-export \-a sfadmin > sfadmin.pub
+gpg \-\-export\-secret\-key \-a sfadmin > sfadmin.key
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
+.sp
+Make sure you copy keep the sfadmin.key in a safe place. For example, if it is
+encrypted using a strong password store it alongside your backup files.
 .sp
 You have to copy this public key to the SF node, and import it as root user.
 .INDENT 0.0
@@ -451,23 +324,13 @@ gpg \-\-import sfadmin.pub
 .UNINDENT
 .UNINDENT
 .sp
-Now you have to trust the imported key.
-.. code\-block:: bash
-.INDENT 0.0
-.INDENT 3.5
-gpg \-\-edit\-key sfadmin
-# Enter "trust"
-# Choose option 5, then exit
-.UNINDENT
-.UNINDENT
-.sp
 If you need to restore from a backup, you need to decrypt the tar.gz file first.
 .INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
 .ft C
-gpg sf_backup.tar.gz.gpg
+gpg \-d sf_backup.tar.gz.gpg
 .ft P
 .fi
 .UNINDENT
@@ -496,24 +359,6 @@ and to deactivates the password from Gerrit.
 .ft C
 sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
                gerrit_api_htpasswd delete_password
-.ft P
-.fi
-.UNINDENT
-.UNINDENT
-.SH INITIATE THE TEST PIPELINE
-.sp
-Once you create a project, you can initiate the project\(aqs tests into Software
-Factory\(aqs pipeline. The result is a entry into the Software Factory\(aqs
-configuration repository that will require review. It will also create
-placeholder scripts in your project. To skip the generation of the placeholder
-just add \fI\-\-no\-scripts\fP\&.
-.INDENT 0.0
-.INDENT 3.5
-.sp
-.nf
-.ft C
-sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
-               tests init \-\-project prj1
 .ft P
 .fi
 .UNINDENT

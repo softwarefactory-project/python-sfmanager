@@ -12,8 +12,7 @@ CLI for Software Factory
 ========================
 
 This documentation describes the shell utility **sfmanager**, which is a CLI for
-the managesf REST API interface in Software Factory. It can be used to
-administrate Software Factory, for example to manage projects and users.
+the managesf REST API interface in Software Factory..
 
 Introduction
 ------------
@@ -38,142 +37,6 @@ There are a few optional arguments as well:
 
 \--debug
     Enable debug messages in console. Disabled by default
-
-
-Example usage
-^^^^^^^^^^^^^
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           project create
-
-Help
-^^^^
-
-Help is always available using the argument '-h':
-
-.. code-block:: bash
-
- sfmanager project -h
- usage: sfmanager project [-h]
-                          {delete_user,add_user,list_active_users,create,delete}
-                          ...
-
-.. _managesf_create_project:
-
-Project management
-------------------
-
-Create new project
-^^^^^^^^^^^^^^^^^^
-
-SF exposes ways to create and initialize projects in Redmine and Gerrit
-simultaneously. Initializing a project involves setting up the ACL and
-initializing the source repository.
-
-By default only the SF administrator will be able to create a project.
-This can be unlock in the Software Factory configuration (sfconfig.yaml) to
-open the project creation feature to every registered users.
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           project create --name <project-name>
-
-There are a few more options available in case you want to customize the
-project.
-
-\--description [project-description], -d [project-description]
-    An optional description of the project.
-
-\--upstream [GIT link], -u [GIT link]
-    Uses the given repository to initalize the project, for example to reuse an existing Github repository
-
-\--upstream-ssh-key upstream-ssh-key
-    SSH key for upstream repository if authentication is required
-
-\--private
-    Mark project as private. In that case only members of the dev, core or ptl
-    group are allowed to access the project.
-
-\--readonly
-    Set specific ALCs to that project to forbid patch merging. This is
-    a specific option to create a project that suppose to be a mirror
-    of another one and where you just want to store patches (eg. for packaging).
-
-Delete Project
-^^^^^^^^^^^^^^
-
-SF exposes ways to delete projects and the groups associated with the project in
-Redmine and Gerrit simultaneously.
-
-For any project, only the PTLs shall have the permission to delete it.
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           project delete --name <project-name>
-
-
-Group management
-----------------
-
-Default groups
-^^^^^^^^^^^^^^
-
-When a project is created a few default project groups are created. To modify
-these groups a user needs to be at least in the same group of users.
-
-projectname-ptl
-    Group of PTLs. Members can add other users to all groups.
-projectname-core
-    Group of core reviewers. Members can add other users to the groups
-    projectname-core and projectname-dev
-projectname-dev
-    Group of developers, required when project is private. Members can not add
-    any other user to any group.
-
-List project users
-^^^^^^^^^^^^^^^^^^
-
-Currently only lists all known users. This command is useful for the "add"
-subcommand of the membership command or for `--ptl-group`, `--core-group`,
-`--dev-group` of the project create options.
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           membership list
-
-
-Add user to project groups
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           membership add --user user1@tests.dom --project p1 \
-           --groups ptl-group core-group
-
-
-
-Remove user from project groups
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           membership remove --user user1@tests.dom --project p1 \
-           --group ptl-group
-
-If the request does not provide a specific group to delete the user from, SF
-will remove the user from all groups associated to a project.
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-           membership remove --user user1@tests.dom --project p1
 
 
 User management
@@ -395,18 +258,3 @@ and to deactivates the password from Gerrit.
 
  sfmanager --url <http://sfgateway.dom> --auth user:password \
                 gerrit_api_htpasswd delete_password
-
-
-Initiate the test pipeline
---------------------------
-
-Once you create a project, you can initiate the project's tests into Software
-Factory's pipeline. The result is a entry into the Software Factory's
-configuration repository that will require review. It will also create
-placeholder scripts in your project. To skip the generation of the placeholder
-just add `--no-scripts`.
-
-.. code-block:: bash
-
- sfmanager --url <http://sfgateway.dom> --auth user:password \
-                tests init --project prj1
