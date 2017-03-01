@@ -378,13 +378,37 @@ def node_command(parser):
                              help='schedule a node for immediate deletion')
     delete.add_argument('--id', '-i', metavar='node-id',
                         required=True)
-    imagelist = subc.add_parser('image-list',
+
+
+def image_command(parser):
+    image = parser.add_parser('image',
+                              help='images related tools')
+    subc = image.add_subparsers(dest='subcommand')
+    imagelist = subc.add_parser('list',
                                 help='list information about images available'
                                      ' to spawn nodes')
     imagelist.add_argument('--provider', '-p', metavar='provider-name',
-                           required=False)
+                           required=True)
     imagelist.add_argument('--image', '-i', metavar='image-name',
                            required=False)
+    imageupdate = subc.add_parser('update',
+                                  help='trigger the update of an image')
+    imageupdate.add_argument('--provider', '-p', metavar='provider-name',
+                             required=True)
+    imageupdate.add_argument('--image', '-i', metavar='image-name',
+                             required=True)
+    imagestatus = subc.add_parser('update-status',
+                                  help='check the status of an update')
+    imagestatus.add_argument('--update-id', '-u', metavar='update-id',
+                             required=True)
+    imagestatus.add_argument('--fetch', default=False, action='store_true',
+                             help='if enabled, attempts downloading the build'
+                                  ' logs and displays them to stdout (not'
+                                  ' compatible with --json option)')
+    imagestatus.add_argument('--fetch-all', default=False, action='store_true',
+                             help='if enabled, attempts downloading the full'
+                                  ' logs and displays them to stdout (not'
+                                  ' compatible with --json option)')
 
 
 def command_options(parser):
@@ -396,6 +420,7 @@ def command_options(parser):
     github_command(sp)
     job_command(sp)
     node_command(sp)
+    image_command(sp)
 
 
 def get_cookie(args):
@@ -491,8 +516,7 @@ def node_action(args, base_url):
 
     if args.command != 'node':
         return False
-    if args.subcommand not in ['list', 'add-user-key', 'hold', 'delete',
-                               'image-list', ]:
+    if args.subcommand not in ['list', 'add-user-key', 'hold', 'delete']:
         return False
     if args.subcommand == 'list':
         url = build_url(base_url, 'nodes/')
@@ -542,7 +566,61 @@ def node_action(args, base_url):
             print_pt(resp)
             return True
         return response(resp)
-    if args.subcommand == 'image-list':
+
+
+def image_action(args, base_url):
+    if args.command != 'image':
+        return False
+    if args.subcommand not in ['list', 'update', 'update-status', ]:
+        return False
+    if args.subcommand == 'update':
+        url = build_url(base_url,
+                        'nodes/images/update/%s/%s' % (args.provider,
+                                                       args.image))
+        resp = request('put', url)
+        if resp.ok and not JSON_OUTPUT:
+            for service in resp.json():
+                msg = ("Image %s on provider %s is being updated.\n"
+                       "To check the status of the update, please run "
+                       "'sfmanager image update-status --update-id %s'")
+                print msg % (args.provider, args.image,
+                             resp.json()[service]['update_id'])
+            return True
+        return response(resp)
+    if args.subcommand == 'update-status':
+        url = build_url(base_url, 'nodes/images/update/%s' % args.update_id)
+        resp = request('get', url)
+        if resp.ok and not JSON_OUTPUT:
+            for service in resp.json():
+                status = resp.json()[service]
+                buildlog = re.compile('^(.+) (INFO|DEBUG|ERR.*|'
+                                      'NOTICE|WARN.*|CRIT|ALERT|EMERG|PANIC) '
+                                      'nodepool.image.build.+: (.+)$')
+                if args.fetch_all or args.fetch:
+                    if args.fetch:
+                        for line in status['output'].split('\n'):
+                            if buildlog.match(line):
+                                m = buildlog.match(line).groups()
+                                print m[0] + '\t' + m[-1]
+                    else:
+                        print status['output']
+                else:
+                    base_fields = ['ID', 'status', 'image',
+                                   'provider']
+                    base_values = [status['id'], status['status'],
+                                   status['image'], status['provider']]
+                    if status['status'] in ['SUCCESS', 'FAILURE']:
+                        base_fields.append('exit code')
+                        base_values.append(status['exit_code'])
+                        if int(status['exit_code']) > 0:
+                            base_fields.append('error')
+                            base_values.append(status['error'])
+                    pt = PrettyTable(base_fields)
+                    pt.add_row(base_values)
+                    print pt
+            return True
+        return response(resp)
+    if args.subcommand == 'list':
         url = build_url(base_url, 'nodes/images/')
         if getattr(args, 'image') and not getattr(args, 'provider'):
             die('please add a provider name')
@@ -962,7 +1040,8 @@ def main():
            github_action(args, base_url) or
            services_users_management_action(args, base_url) or
            job_action(args, base_url) or
-           node_action(args, base_url)):
+           node_action(args, base_url) or
+           image_action(args, base_url)):
         die("ManageSF failed to execute your command")
 
 

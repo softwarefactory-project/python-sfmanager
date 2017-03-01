@@ -57,7 +57,8 @@ class BaseFunctionalTest(TestCase):
             with patch('sfmanager.sfmanager.request') as method:
                 method.return_value = FakeResponse(json_data=returned_json)
                 parsed = self.parser.parse_args(cmd_args)
-                self.assertTrue(action_func(parsed, self.base_url))
+                self.assertTrue(action_func(parsed, self.base_url),
+                                [action_func.__name__, parsed, self.base_url])
 
                 if expected_data is not None:
                     method.assert_called_with(method_verb, expected_url,
@@ -122,6 +123,42 @@ class TestJobsActions(BaseFunctionalTest):
                                                       'status': 'ABORTED'}})
 
 
+class TestImagesActions(BaseFunctionalTest):
+    def test_list_images(self):
+        args = self.default_args
+        args += 'image list -p default'.split()
+        expected_url = self.base_url + 'nodes/images/default/'
+        keys = ['id', 'provider_name', 'image_name', 'hostname',
+                'version', 'image_id',
+                'server_id', 'state', 'age']
+        img_info = dict(zip(keys, ['aaa'] * len(keys)))
+        returned_json = {'nodepool': [img_info, ]}
+        self.assert_secure('get', args,
+                           sfmanager.image_action, expected_url,
+                           returned_json=returned_json)
+
+    def test_update_image(self):
+        args = self.default_args
+        args += 'image update -p default -i sfcentos'.split()
+        expected_url = self.base_url + 'nodes/images/update/default/sfcentos/'
+        returned_json = {"nodepool": {"update_id": 1}}
+        self.assert_secure('put', args,
+                           sfmanager.image_action, expected_url,
+                           returned_json=returned_json)
+
+    def test_update_image_status(self):
+        args = self.default_args
+        args += 'image update-status -u 29'.split()
+        expected_url = self.base_url + 'nodes/images/update/29/'
+        u = {"status": "SUCCESS", "image": "sfcentos",
+             "error": "", "exit_code": "0", "provider": "default",
+             "output": "coolio burrito", "id": "29"}
+        returned_json = {"nodepool": u}
+        self.assert_secure('get', args,
+                           sfmanager.image_action, expected_url,
+                           returned_json=returned_json)
+
+
 class TestNodesActions(BaseFunctionalTest):
     def test_list_nodes(self):
         args = self.default_args
@@ -159,19 +196,6 @@ class TestNodesActions(BaseFunctionalTest):
         node_info = dict(zip(keys, ['aaa'] * len(keys)))
         returned_json = {'nodepool': [node_info, ]}
         self.assert_secure('delete', args,
-                           sfmanager.node_action, expected_url,
-                           returned_json=returned_json)
-
-    def test_list_images(self):
-        args = self.default_args
-        args += 'node image-list'.split()
-        expected_url = self.base_url + 'nodes/images/'
-        keys = ['id', 'provider_name', 'image_name', 'hostname',
-                'version', 'image_id',
-                'server_id', 'state', 'age']
-        node_info = dict(zip(keys, ['aaa'] * len(keys)))
-        returned_json = {'nodepool': [node_info, ]}
-        self.assert_secure('get', args,
                            sfmanager.node_action, expected_url,
                            returned_json=returned_json)
 
