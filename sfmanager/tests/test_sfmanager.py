@@ -14,6 +14,7 @@
 
 import argparse
 import os
+import yaml
 from mock import patch
 from tempfile import mkstemp, NamedTemporaryFile
 from unittest import TestCase
@@ -28,6 +29,81 @@ class FakeResponse(object):
         self.text = text
         self.ok = True
         self.json = lambda: json_data
+
+
+class TestRCFile(TestCase):
+    def setUp(self):
+        _, self.rc = mkstemp()
+        sfmanager.DEFAULT_RC_PATHS = [self.rc, ] + sfmanager.DEFAULT_RC_PATHS
+        self.parser = argparse.ArgumentParser(description="test")
+        sfmanager.default_arguments(self.parser)
+        sfmanager.command_options(self.parser)
+
+    def test_rc_file_not_found(self):
+        d = sfmanager.DEFAULT_RC_PATHS
+        sfmanager.DEFAULT_RC_PATHS = []
+        args = self.parser.parse_args(['--env', 'sf', 'sf_user', 'list'])
+        self.assertIsNotNone(args.env)
+        self.assertRaisesRegexp(Exception, 'no rc file found',
+                                sfmanager.load_rc_file, args)
+        sfmanager.DEFAULT_RC_PATHS = d
+
+    def test_rc_file_bad_format(self):
+        with open(self.rc, 'w') as rc:
+            rc.write('trololo')
+        args = self.parser.parse_args(['--env', 'sf', 'sf_user', 'list'])
+        self.assertIsNotNone(args.env)
+        self.assertRaisesRegexp(Exception, 'Incorrect rc file format',
+                                sfmanager.load_rc_file, args)
+
+    def test_rc_file_env_not_found(self):
+        with open(self.rc, 'w') as rc:
+            yaml.dump({'sf': {'url': 'http://a',
+                              'insecure': True,
+                              'debug': True,
+                              'auth': {'username': 'b',
+                                       'password': 'c'}
+                              }
+                       }, rc, default_flow_style=False)
+        args = self.parser.parse_args(['--env', 'sf2', 'sf_user', 'list'])
+        self.assertIsNotNone(args.env)
+        self.assertRaisesRegexp(Exception, 'Unknown environment sf2',
+                                sfmanager.load_rc_file, args)
+
+    def test_rc_file_env(self):
+        with open(self.rc, 'w') as rc:
+            yaml.dump({'sf': {'url': 'http://a',
+                              'insecure': True,
+                              'debug': True,
+                              'auth': {'username': 'b',
+                                       'password': 'c'}
+                              },
+                       'sf2': {'url': 'http://a',
+                               'insecure': True,
+                               'debug': True,
+                               'auth': {'username': 'b',
+                                        'password': 'c'}
+                               },
+                       'sf3': {'url': 'http://a',
+                               'insecure': True,
+                               'debug': True,
+                               'auth': {'api-key': 'd'}
+                               },
+                       }, rc, default_flow_style=False)
+        args = self.parser.parse_args(['--env', 'sf2', 'sf_user', 'list'])
+        self.assertIsNotNone(args.env)
+        sfmanager.load_rc_file(args)
+        self.assertEqual('http://a', args.url)
+        self.assertEqual(True, args.insecure)
+        self.assertEqual(True, args.debug)
+        self.assertEqual('b:c', args.auth)
+        args = self.parser.parse_args(['--env', 'sf3', 'sf_user', 'list'])
+        self.assertIsNotNone(args.env)
+        sfmanager.load_rc_file(args)
+        self.assertEqual('d', args.api_key)
+
+    def tearDown(self):
+        sfmanager.DEFAULT_RC_PATHS = sfmanager.DEFAULT_RC_PATHS[1:]
 
 
 class BaseFunctionalTest(TestCase):

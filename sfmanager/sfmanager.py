@@ -45,6 +45,13 @@ JSON_OUTPUT = False
 VERIFY_SSL = True
 COOKIE = None
 
+DEFAULT_RC_PATHS = [os.path.join(os.getcwd(), '.software-factory.rc'),
+                    os.path.expanduser('~/.software-factory.rc'),
+                    os.path.expanduser('~/.software-factory/'
+                                       'software-factory.rc'),
+                    '/etc/software-factory/software-factory.rc']
+
+
 requests_log = logging.getLogger("requests.packages.urllib3")
 requests_log.setLevel(logging.DEBUG)
 requests_log.propagate = True
@@ -163,11 +170,57 @@ def split_and_strip(s):
     return [x.strip() for x in l]
 
 
+def load_rc_file(args):
+    for path in DEFAULT_RC_PATHS:
+        if os.path.isfile(path):
+            logger.debug("Using rc file %s" % path)
+            with open(path, 'r') as ymlfile:
+                cfg = yaml.load(ymlfile)
+            if not isinstance(cfg, dict):
+                raise Exception("Incorrect rc file format")
+            if args.env not in cfg:
+                raise Exception("Unknown environment %s" % args.env)
+            env = cfg[args.env]
+            if env.get('url'):
+                args.url = env['url']
+            if env.get('insecure'):
+                args.insecure = env['insecure']
+            if env.get('debug'):
+                args.debug = env['debug']
+            if env.get('auth'):
+                if env['auth'].get('username'):
+                    args.auth = env['auth']['username']
+                    # would anybody put a password but no username?
+                    if env['auth'].get('password'):
+                        args.auth += ':' + env['auth']['password']
+                    return
+                if env['auth'].get('api-key'):
+                    args.api_key = env['auth']['api-key']
+                    return
+                if env['auth'].get('cookie'):
+                    args.cookie = env['auth']['cookie']
+                    return
+                if env['auth'].get('github-token'):
+                    args.github_token = env['auth']['github-token']
+                    return
+            return
+        else:
+            logger.debug("Could not find rc file %s" % path)
+    raise Exception("Environment %s could not be loaded: "
+                    "no rc file found" % args.env)
+
+
 def default_arguments(parser):
+    parser.add_argument('--env', '-e',
+                        help='The environment to use from an RC file. '
+                             'Default locations are .software-factory.rc, '
+                             '~/.software-factory.rc, ~/.software-factory'
+                             '/software-factory.rc and /etc/software-factory'
+                             '/software-factory.rc in order of discovery')
     parser.add_argument('--url',
                         help='Software Factory public gateway URL')
     parser.add_argument('--auth', metavar='username[:password]',
-                        help='Authentication information')
+                        help='Authentication information',)
     parser.add_argument('--github-token', metavar='GithubPersonalAccessToken',
                         help='Authenticate with a Github Access Token')
     parser.add_argument('--api-key', metavar='APIKEY',
@@ -953,6 +1006,11 @@ def main():
     default_arguments(parser)
     command_options(parser)
     args = parser.parse_args()
+    if args.env:
+        try:
+            load_rc_file(args)
+        except Exception as e:
+            die(e.message)
     globals()['JSON_OUTPUT'] = args.json
     globals()['VERIFY_SSL'] = not args.insecure
 

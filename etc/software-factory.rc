@@ -1,0 +1,13 @@
+sftests:
+  url: https://sftests.com
+  insecure: true
+  # use one of these auth methods at most. They are listed in priority order.
+  auth:
+    username: admin
+    # password can be omitted if username is provided; it will have to be
+    # manually set within the CLI
+    password: userpass
+    api-key: edcba
+    cookie: nomnom
+    github-token: abcde
+  debug: false
