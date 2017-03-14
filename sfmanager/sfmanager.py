@@ -251,7 +251,7 @@ def system_command(parser):
 
 def user_management_command(parser):
     uc = parser.add_parser('user',
-                           help='project users-related commands')
+                           help='local users backend related commands')
     suc = uc.add_subparsers(dest="subcommand")
 
     cump = suc.add_parser('create', help='Create user. Admin rights required')
