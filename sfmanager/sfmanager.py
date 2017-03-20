@@ -1033,7 +1033,8 @@ def main():
     if args.url and not args.url.lower().startswith('http'):
             parser.error('missing protocol in argument --url: %s' % args.url)
     else:
-        base_url = "%s/manage" % args.url.rstrip('/')
+        if args.command != "github":
+            base_url = "%s/manage" % args.url.rstrip('/')
 
     if not args.debug:
         ch.setLevel(logging.ERROR)
@@ -1086,7 +1087,8 @@ def main():
         password = getpass.getpass("%s's password: " % args.auth)
         args.auth = "%s:%s" % (args.auth, password)
 
-    globals()['COOKIE'] = {'auth_pubtkt': get_cookie(args)}
+    if args.command != "github":
+        globals()['COOKIE'] = {'auth_pubtkt': get_cookie(args)}
 
     if args.insecure:
         import urllib3
