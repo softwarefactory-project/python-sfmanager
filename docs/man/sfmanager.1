@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "SFMANAGER" "1" "May 11, 2017" "0.1" "sfmanager (SF client)"
+.TH "SFMANAGER" "1" "May 15, 2017" "0.1" "sfmanager (SF client)"
 .SH NAME
 sfmanager \- sfmanager Documentation
 .
@@ -644,6 +644,21 @@ you can cancel a running job:
 .ft C
 sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
      job stop \-j job\-name \-i job\-id
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH PROJECT
+.sp
+sfmanager can be used to clone repositories part of a project.
+.SS Clone project\(aqs repositories
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+    project clone \-p internal \-d ~/git/internal
 .ft P
 .fi
 .UNINDENT
