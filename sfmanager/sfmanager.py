@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+import git
 import requests
 import sqlite3
 import sys
@@ -358,6 +359,16 @@ def gerrit_api_htpassword_command(parser):
                             ' access htpassword')
 
 
+def project_command(parser):
+    project = parser.add_parser('project',
+                                help='project related commands')
+    proc = project.add_subparsers(dest='subcommand')
+    clone = proc.add_parser('clone',
+                            help="clone project's repositories")
+    clone.add_argument('--project', '-p', required=True)
+    clone.add_argument('--dest-path', '-d', required=True)
+
+
 def job_command(parser):
     job = parser.add_parser('job',
                             help='jobs related tools')
@@ -474,6 +485,7 @@ def command_options(parser):
     job_command(sp)
     node_command(sp)
     image_command(sp)
+    project_command(sp)
 
 
 def get_cookie(args):
@@ -966,6 +978,37 @@ def user_management_action(args, base_url):
     return response(resp)
 
 
+def project_action(args, base_url):
+    if args.command != 'project':
+        return False
+    if args.subcommand not in ['clone']:
+        return False
+    url = build_url(base_url, 'resources')
+    resources = request('get', url).json()['resources']['projects']
+    if args.project not in resources.keys():
+        print "Requested project %s cannot be found" % args.project
+        return False
+    path = os.path.expanduser(args.dest_path)
+    if not os.path.isdir(path):
+        print "Creating %s" % path
+        os.mkdir(path)
+    for repo in resources[args.project]['source-repositories']:
+        c_uri = build_url(base_url.replace('manage', 'r'), repo).rstrip('/')
+        print "Fetching %s in %s ..." % (c_uri, repo)
+        repo = git.Repo.init(os.path.join(path, repo))
+        try:
+            origin = repo.remote('origin')
+        except ValueError:
+            origin = repo.create_remote('origin', c_uri)
+        config = repo.config_writer(config_level='repository')
+        if not config.has_section('http'):
+            config.add_section('http')
+        config.set('http', 'sslVerify', not args.insecure)
+        origin.fetch()
+        origin.pull(origin.refs[0].remote_head)
+    return True
+
+
 def services_users_management_action(args, base_url):
     if args.command != 'sf_user':
         return False
@@ -1055,7 +1098,8 @@ def main():
     if (args.auth is None and
        args.cookie is None and
        args.github_token is None and
-       args.api_key is None):
+       args.api_key is None and
+       not (args.command == 'project' and args.subcommand == 'clone')):
         host = urlparse.urlsplit(args.url).hostname
         logger.info("No authentication provided, looking for an existing "
                     "cookie for host %s... " % host),
@@ -1087,7 +1131,8 @@ def main():
         password = getpass.getpass("%s's password: " % args.auth)
         args.auth = "%s:%s" % (args.auth, password)
 
-    if args.command != "github":
+    if args.command != "github" and not (
+            args.command == 'project' and args.subcommand == 'clone'):
         globals()['COOKIE'] = {'auth_pubtkt': get_cookie(args)}
 
     if args.insecure:
@@ -1101,7 +1146,8 @@ def main():
            services_users_management_action(args, base_url) or
            job_action(args, base_url) or
            node_action(args, base_url) or
-           image_action(args, base_url)):
+           image_action(args, base_url) or
+           project_action(args, base_url)):
         die("ManageSF failed to execute your command")
 
 
