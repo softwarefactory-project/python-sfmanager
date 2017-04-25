@@ -470,3 +470,15 @@ you can cancel a running job:
 .. code-block:: bash
 
  sfmanager -e my_sf job stop -j job-name -i job-id
+
+Project
+-------
+
+sfmanager can be used to clone repositories part of a project.
+
+Clone project's repositories
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+ sfmanager --url <https://sfgateway.dom> project clone -p internal -d ~/git/internal
