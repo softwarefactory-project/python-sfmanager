@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+import git
 import requests
 import sqlite3
 import sys
@@ -358,6 +359,16 @@ def gerrit_api_htpassword_command(parser):
                             ' access htpassword')
 
 
+def project_command(parser):
+    project = parser.add_parser('project',
+                                help='project related commands')
+    proc = project.add_subparsers(dest='subcommand')
+    clone = proc.add_parser('clone',
+                            help="Clone project's repositories")
+    clone.add_argument('--project', '-p', required=True)
+    clone.add_argument('--dest-path', '-d', required=True)
+
+
 def job_command(parser):
     job = parser.add_parser('job',
                             help='jobs related tools')
@@ -514,6 +525,7 @@ def command_options(parser):
     node_command(sp)
     image_command(sp)
     dib_image_command(sp)
+    project_command(sp)
 
 
 def get_cookie(args):
@@ -1087,6 +1099,48 @@ def user_management_action(args, base_url):
     return response(resp)
 
 
+def project_action(args, base_url):
+    if args.command != 'project':
+        return False
+    if args.subcommand not in ['clone']:
+        return False
+    url = build_url(base_url, 'resources')
+    resources = request('get', url).json()['resources']['projects']
+    if args.subcommand == 'clone':
+        if args.project not in resources.keys():
+            print "Requested project %s cannot be found" % args.project
+            return False
+        path = os.path.expanduser(args.dest_path)
+        if not os.path.isdir(path):
+            print "Creating %s" % path
+            os.mkdir(path)
+        for repo in resources[args.project]['source-repositories']:
+            c_uri = build_url(base_url.replace('manage', 'r'),
+                              repo).rstrip('/')
+            print "Fetching %s in %s ..." % (
+                repo, os.path.join(path, repo))
+            if os.path.isdir(os.path.join(path, repo, '.git')):
+                # Already exist just fetch the refs
+                light_update = True
+            else:
+                light_update = False
+            repo = git.Repo.init(os.path.join(path, repo))
+            try:
+                origin = repo.remote('origin')
+            except ValueError:
+                origin = repo.create_remote('origin', c_uri)
+            output = repo.git.remote("show", "origin").splitlines()
+            head = [l.split(':')[-1].strip() for l in output if
+                    re.match("^\s+HEAD branch: .+$", l)][0]
+            repo.git.config("http.sslVerify", "%s" % (not args.insecure))
+            origin.fetch(head)
+            if not light_update:
+                print "Checkout %s ..." % head
+                origin.pull(head)
+            repo.git.branch(head, set_upstream_to="origin/%s" % head)
+    return True
+
+
 def services_users_management_action(args, base_url):
     if args.command != 'sf_user':
         return False
@@ -1176,7 +1230,8 @@ def main():
     if (args.auth is None and
        args.cookie is None and
        args.github_token is None and
-       args.api_key is None):
+       args.api_key is None and
+       not (args.command == 'project' and args.subcommand == 'clone')):
         host = urlparse.urlsplit(args.url).hostname
         logger.info("No authentication provided, looking for an existing "
                     "cookie for host %s... " % host),
@@ -1208,7 +1263,8 @@ def main():
         password = getpass.getpass("%s's password: " % args.auth)
         args.auth = "%s:%s" % (args.auth, password)
 
-    if args.command != "github":
+    if args.command != "github" and not (
+            args.command == 'project' and args.subcommand == 'clone'):
         globals()['COOKIE'] = {'auth_pubtkt': get_cookie(args)}
 
     if args.insecure:
@@ -1223,7 +1279,8 @@ def main():
            job_action(args, base_url) or
            node_action(args, base_url) or
            image_action(args, base_url) or
-           dib_image_action(args, base_url)):
+           dib_image_action(args, base_url) or
+           project_action(args, base_url)):
         die("ManageSF failed to execute your command")
 
 

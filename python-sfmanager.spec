@@ -17,6 +17,7 @@ Requires:       python2-urllib3
 Requires:       python-crypto
 Requires:       python-prettytable
 Requires:       python-requests
+Requires:       GitPython
 
 Buildrequires:  python2-devel
 Buildrequires:  python-setuptools
@@ -29,6 +30,7 @@ BuildRequires:  python2-urllib3
 BuildRequires:  python-crypto
 BuildRequires:  python-prettytable
 BuildRequires:  python-requests
+BuildRequires:  GitPython
 
 %description
 Software Factory command line client
@@ -41,6 +43,7 @@ Requires:       python2-urllib3
 Requires:       python-crypto
 Requires:       python-prettytable
 Requires:       python-requests
+Requires:       GitPython
 
 Buildrequires:  python2-devel
 Buildrequires:  python-setuptools
@@ -53,6 +56,7 @@ BuildRequires:  python2-urllib3
 BuildRequires:  python-crypto
 BuildRequires:  python-prettytable
 BuildRequires:  python-requests
+BuildRequires:  GitPython
 
 %description -n python2-sfmanager
 Software Factory command line client
