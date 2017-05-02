@@ -464,6 +464,45 @@ def image_command(parser):
                                   ' compatible with --json option)')
 
 
+def dib_image_command(parser):
+    dib_image = parser.add_parser('dib-image',
+                                  help='dib images related tools')
+    subc = dib_image.add_subparsers(dest='subcommand')
+    dib_imagelist = subc.add_parser('list',
+                                    help='list information about images '
+                                    'available to spawn nodes (dib)')
+    dib_imagelist.add_argument('--image', '-i', metavar='image-name',
+                               required=False)
+    dib_imageupdate = subc.add_parser('update',
+                                      help='trigger the local rebuild of '
+                                           'an image')
+    dib_imageupdate.add_argument('--image', '-i', metavar='image-name',
+                                 required=True)
+    dib_imageupload = subc.add_parser('upload',
+                                      help='trigger the upload of '
+                                           'an image to a cloud provider')
+    dib_imageupload.add_argument('--provider', '-p', metavar='provider-name',
+                                 required=True)
+    dib_imageupload.add_argument('--image', '-i', metavar='image-name',
+                                 required=True)
+    dib_imagestatus = subc.add_parser('status',
+                                      help='check the status of an update '
+                                           'or an upload')
+    dib_imagestatus.add_argument('--id', '-a', metavar='action-id',
+                                 required=True)
+    dib_imagestatus.add_argument('--fetch', default=False, action='store_true',
+                                 help='if enabled, attempts downloading the '
+                                      'nodepool command logs and displays '
+                                      'them to stdout (not compatible with '
+                                      '--json option)')
+    dib_imagelogs = subc.add_parser('logs',
+                                    help='download the build logs of a dib'
+                                         'image')
+    dib_imagelogs.add_argument('--image', '-i', metavar='dibimage-name',
+                               help='download the build logs of a given '
+                                    'dib image.')
+
+
 def command_options(parser):
     sp = parser.add_subparsers(dest="command")
     user_management_command(sp)
@@ -474,6 +513,7 @@ def command_options(parser):
     job_command(sp)
     node_command(sp)
     image_command(sp)
+    dib_image_command(sp)
 
 
 def get_cookie(args):
@@ -628,8 +668,8 @@ def image_action(args, base_url):
         return False
     if args.subcommand == 'update':
         url = build_url(base_url,
-                        'nodes/images/update/%s/%s' % (args.provider,
-                                                       args.image))
+                        'nodes/images/update/%s/%s' % (args.image,
+                                                       args.provider))
         resp = request('put', url)
         if resp.ok and not JSON_OUTPUT:
             for service in resp.json():
@@ -675,12 +715,9 @@ def image_action(args, base_url):
         return response(resp)
     if args.subcommand == 'list':
         url = build_url(base_url, 'nodes/images/')
-        if getattr(args, 'image') and not getattr(args, 'provider'):
-            die('please add a provider name')
-        if getattr(args, 'provider'):
-            url = build_url(url, '%s/' % args.provider)
-        if getattr(args, 'image'):
-            url = build_url(url, '%s/' % args.image)
+        url += getattr(args, 'image') is None and '/' or '%s/' % args.image
+        url += (getattr(args, 'provider') is None and '/' or
+                '%s/' % args.provider)
         resp = request('get', url)
         if resp.ok and not JSON_OUTPUT:
             for service in resp.json():
@@ -693,6 +730,90 @@ def image_action(args, base_url):
                         [i['id'], i['provider_name'], i['image_name'],
                          i['hostname'], i['version'], i['image_id'],
                          i['server_id'], i['state'], i['age'], ])
+                print pt
+            return True
+        return response(resp)
+
+
+def dib_image_action(args, base_url):
+    if args.command != 'dib-image':
+        return False
+    if args.subcommand not in ['list', 'update', 'upload', 'status', 'logs', ]:
+        return False
+    if args.subcommand == 'logs':
+        url = args.url
+        if url.endswith('/'):
+            url += 'nodepool-log/%s.log' % args.image
+        else:
+            url += '/nodepool-log/%s.log' % args.image
+        resp = request('get', url)
+        if resp.ok:
+            print resp.text
+            return True
+        return response(resp)
+    if args.subcommand == 'update':
+        url = build_url(base_url,
+                        'nodes/dib_images/update/%s/' % args.image)
+        resp = request('put', url)
+        if resp.ok and not JSON_OUTPUT:
+            for service in resp.json():
+                msg = ("Image %s is being rebuilt.\n"
+                       "To check the status of the build, please run "
+                       "'sfmanager dib_image status --id %s'")
+                print msg % (args.image, resp.json()[service]['update_id'])
+            return True
+        return response(resp)
+    if args.subcommand == 'upload':
+        x = (getattr(args, 'image'), getattr(args, 'provider'))
+        url = build_url(base_url,
+                        'nodes/dib_images/update/%s/%s/' % x)
+        resp = request('post', url)
+        if resp.ok and not JSON_OUTPUT:
+            for service in resp.json():
+                msg = ("Image %s on provider %s is being updated.\n"
+                       "To check the status of the update, please run "
+                       "'sfmanager dib_image status --id %s'")
+                print msg % (args.provider, args.image,
+                             resp.json()[service]['update_id'])
+            return True
+        return response(resp)
+    if args.subcommand == 'status':
+        url = build_url(base_url, 'nodes/dib_images/update/%s' % args.id)
+        resp = request('get', url)
+        if resp.ok and not JSON_OUTPUT:
+            for service in resp.json():
+                status = resp.json()[service]
+                if args.fetch:
+                    print status['output']
+                else:
+                    base_fields = ['ID', 'status', 'image',
+                                   'provider']
+                    base_values = [status['id'], status['status'],
+                                   status['image'], status['provider']]
+                    if status['status'] in ['SUCCESS', 'FAILURE']:
+                        base_fields.append('exit code')
+                        base_values.append(status['exit_code'])
+                        if int(status['exit_code']) > 0:
+                            base_fields.append('error')
+                            base_values.append(status['error'])
+                    pt = PrettyTable(base_fields)
+                    pt.add_row(base_values)
+                    print pt
+            return True
+        return response(resp)
+    if args.subcommand == 'list':
+        url = build_url(base_url, 'nodes/dib_images/')
+        url = build_url(url, '%s/' % True and getattr(args, 'image') or '')
+        resp = request('get', url)
+        if resp.ok and not JSON_OUTPUT:
+            for service in resp.json():
+                print "\nImage(s) managed by service %s:\n" % service
+                pt = PrettyTable(['ID', 'image', 'version', 'file name',
+                                  'state', 'age (seconds)'])
+                for i in resp.json()[service]:
+                    pt.add_row(
+                        [i['id'], i['image'], i['version'], i['filename'],
+                         i['state'], i['age'], ])
                 print pt
             return True
         return response(resp)
@@ -1101,7 +1222,8 @@ def main():
            services_users_management_action(args, base_url) or
            job_action(args, base_url) or
            node_action(args, base_url) or
-           image_action(args, base_url)):
+           image_action(args, base_url) or
+           dib_image_action(args, base_url)):
         die("ManageSF failed to execute your command")
 
 

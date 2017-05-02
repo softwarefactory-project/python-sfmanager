@@ -258,3 +258,60 @@ and to deactivates the password from Gerrit.
 
  sfmanager --url <http://sfgateway.dom> --auth user:password \
                 gerrit_api_htpasswd delete_password
+
+Nodepool images management
+--------------------------
+
+sfmanager can be used to trigger manual updates on nodepool images, whether they
+are based on cloud images or on images built with Disk-Image-Builder (DIB).
+
+List images
+^^^^^^^^^^^
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+           image list [-i image_name] [-p provider_name]
+
+List images (DIB)
+^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+          dib-image list [-i image_name]
+
+update images
+^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+         image update -i image_name -p provider_name
+
+update images (DIB)
+^^^^^^^^^^^^^^^^^^^
+
+First, rebuild the DIB image locally:
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+        dib-image update -i dib_image_name
+
+Then recreate a cloud image on a provider:
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+                dib-image upload -i image_name -p provider_name
+
+get build logs (DIB)
+^^^^^^^^^^^^^^^^^^^^
+
+This command will download build logs for a given DIB image:
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+        dib-image logs -i dib_image_name
