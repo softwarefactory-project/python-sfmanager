@@ -203,7 +203,7 @@ class TestImagesActions(BaseFunctionalTest):
     def test_list_images(self):
         args = self.default_args
         args += 'image list -p default'.split()
-        expected_url = self.base_url + 'nodes/images/default/'
+        expected_url = self.base_url + 'nodes/images//default/'
         keys = ['id', 'provider_name', 'image_name', 'hostname',
                 'version', 'image_id',
                 'server_id', 'state', 'age']
@@ -216,11 +216,66 @@ class TestImagesActions(BaseFunctionalTest):
     def test_update_image(self):
         args = self.default_args
         args += 'image update -p default -i sfcentos'.split()
-        expected_url = self.base_url + 'nodes/images/update/default/sfcentos/'
+        expected_url = self.base_url + 'nodes/images/update/sfcentos/default/'
         returned_json = {"nodepool": {"update_id": 1}}
         self.assert_secure('put', args,
                            sfmanager.image_action, expected_url,
                            returned_json=returned_json)
+
+    def test_list_dib_images(self):
+        args = self.default_args
+        args += 'dib-image list -i dibdib'.split()
+        expected_url = self.base_url + 'nodes/dib_images/dibdib/'
+        keys = ['id', 'image', 'image',
+                'version', 'filename', 'state', 'age']
+        img_info = dict(zip(keys, ['aaa'] * len(keys)))
+        returned_json = {'nodepool': [img_info, ]}
+        self.assert_secure('get', args,
+                           sfmanager.dib_image_action, expected_url,
+                           returned_json=returned_json)
+
+    def test_update_dib_image(self):
+        args = self.default_args
+        args += 'dib-image update -i sfcentos'.split()
+        expected_url = self.base_url + 'nodes/dib_images/update/sfcentos/'
+        returned_json = {"nodepool": {"update_id": 1}}
+        self.assert_secure('put', args,
+                           sfmanager.dib_image_action, expected_url,
+                           returned_json=returned_json)
+
+    def test_upload_dib_image(self):
+        args = self.default_args
+        args += 'dib-image upload -p default -i sfcentos'.split()
+        expected_url = (self.base_url +
+                        'nodes/dib_images/update/sfcentos/default/')
+        returned_json = {"nodepool": {"update_id": 1}}
+        self.assert_secure('post', args,
+                           sfmanager.dib_image_action, expected_url,
+                           returned_json=returned_json)
+
+    def test_dib_image_status(self):
+        args = self.default_args
+        args += 'dib-image status -a 29'.split()
+        expected_url = self.base_url + 'nodes/dib_images/update/29/'
+        u = {"status": "SUCCESS", "image": "sfcentos",
+             "error": "", "exit_code": "0", "provider": "default",
+             "output": "coolio burrito", "id": "29"}
+        returned_json = {"nodepool": u}
+        self.assert_secure('get', args,
+                           sfmanager.dib_image_action, expected_url,
+                           returned_json=returned_json)
+
+    def test_dib_image_logs(self):
+        args = self.default_args
+        args += 'dib-image logs -i dibs'.split()
+        parsed = self.parser.parse_args(args)
+        expected_url = self.base_url + 'nodepool-log/dibs.log'
+        with patch('sfmanager.sfmanager.get_cookie') as c:
+            c.return_value = 'fake_cookie'
+            with patch('sfmanager.sfmanager.request') as request:
+                self.assertTrue(sfmanager.dib_image_action(parsed,
+                                                           self.base_url))
+                request.assert_called_with('get', expected_url)
 
     def test_update_image_status(self):
         args = self.default_args
