@@ -203,7 +203,7 @@ class TestImagesActions(BaseFunctionalTest):
     def test_list_images(self):
         args = self.default_args
         args += 'image list -p default'.split()
-        expected_url = self.base_url + 'nodes/images/default/'
+        expected_url = self.base_url + 'nodes/images//default/'
         keys = ['id', 'provider_name', 'image_name', 'hostname',
                 'version', 'image_id',
                 'server_id', 'state', 'age']
@@ -216,7 +216,7 @@ class TestImagesActions(BaseFunctionalTest):
     def test_update_image(self):
         args = self.default_args
         args += 'image update -p default -i sfcentos'.split()
-        expected_url = self.base_url + 'nodes/images/update/default/sfcentos/'
+        expected_url = self.base_url + 'nodes/images/update/sfcentos/default/'
         returned_json = {"nodepool": {"update_id": 1}}
         self.assert_secure('put', args,
                            sfmanager.image_action, expected_url,
