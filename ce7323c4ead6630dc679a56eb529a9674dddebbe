@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "da9b358b_0fd54442",
+        "filename": "sfmanager/sfmanager.py",
+        "patchSetId": 4
+      },
+      "lineNbr": 369,
+      "author": {
+        "id": 68
+      },
+      "writtenOn": "2017-05-03T13:29:08Z",
+      "side": 1,
+      "message": "could the default be $(pwd) ?",
+      "revId": "ce7323c4ead6630dc679a56eb529a9674dddebbe",
+      "serverId": "6c1dc8ef-8b94-40e4-bd83-c2359d45ecc0",
+      "unresolved": false
+    }
+  ]
+}
