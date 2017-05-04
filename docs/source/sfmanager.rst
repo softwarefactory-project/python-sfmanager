@@ -26,18 +26,66 @@ the remote servers.
 \--url <http://sfgateway.dom>
     URL of the managesf instance
 
-\--auth user:password
-    Username and password to use when accessing the managesf interface.
-    This option is only valid if it is a local user within Software Factory
-
-There are a few optional arguments as well:
+Optional:
 
 \--insecure
-    Disable SSL certificate verification. Enabled by default
+    Disable SSL certificate verification.
 
 \--debug
     Enable debug messages in console. Disabled by default
 
+\--json
+    Output command results as JSON, if applicable
+
+Authentication
+^^^^^^^^^^^^^^
+
+\--auth user:password
+    Username and password to use when accessing the managesf interface.
+    This option is only valid if it is a local user within Software Factory
+
+\--api-key abcde1234
+    User API key that can be found on the user's settings page
+
+\--cookie uid=...
+    The HTTP auth cookie, can be found with the developer console in any
+    web browser
+
+\--github-token kkkk
+    A Github API token, if the user is authenticating to Software Factory with
+    his/her Github account
+
+rc file
+^^^^^^^
+
+Rather than writing these global options each time the CLI is used, they can
+be stored in $HOME/.software-factory.rc:
+
+.. code-block:: yaml
+
+ sf_environment:
+    url: https://sftests.com
+    insecure: true
+    # use one of these auth methods at most. They are listed in priority order
+    # in case several are present.
+    auth:
+      username: admin
+      # password can be omitted if username is provided; it will have to be
+      # manually set within the CLI
+      password: userpass
+      api-key: edcba
+      cookie: nomnom
+      github-token: abcde
+    debug: false
+
+If you are using distinct instances of Software Factory, more environments can
+be defined in the rc file in the same fashion.
+
+To apply an environment configuration, use:
+
+.. code-block:: bash
+
+ sfmanager -e sf_environment ...
 
 User management
 ---------------
