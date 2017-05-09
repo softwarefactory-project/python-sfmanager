@@ -759,7 +759,7 @@ def dib_image_action(args, base_url):
             for service in resp.json():
                 msg = ("Image %s is being rebuilt.\n"
                        "To check the status of the build, please run "
-                       "'sfmanager dib_image status --id %s'")
+                       "'sfmanager dib-image status --id %s'")
                 print msg % (args.image, resp.json()[service]['update_id'])
             return True
         return response(resp)
@@ -772,7 +772,7 @@ def dib_image_action(args, base_url):
             for service in resp.json():
                 msg = ("Image %s on provider %s is being updated.\n"
                        "To check the status of the update, please run "
-                       "'sfmanager dib_image status --id %s'")
+                       "'sfmanager dib-image status --id %s'")
                 print msg % (args.provider, args.image,
                              resp.json()[service]['update_id'])
             return True
