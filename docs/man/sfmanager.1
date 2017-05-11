@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "SFMANAGER" "1" "February 07, 2017" "0.1" "sfmanager (SF client)"
+.TH "SFMANAGER" "1" "May 11, 2017" "0.1" "sfmanager (SF client)"
 .SH NAME
 sfmanager \- sfmanager Documentation
 .
@@ -30,36 +30,9 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.
-.nr rst2man-indent-level 0
-.
-.de1 rstReportMargin
-\\$1 \\n[an-margin]
-level \\n[rst2man-indent-level]
-level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
--
-\\n[rst2man-indent0]
-\\n[rst2man-indent1]
-\\n[rst2man-indent2]
-..
-.de1 INDENT
-.\" .rstReportMargin pre:
-. RS \\$1
-. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
-. nr rst2man-indent-level +1
-.\" .rstReportMargin post:
-..
-.de UNINDENT
-. RE
-.\" indent \\n[an-margin]
-.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
-.nr rst2man-indent-level -1
-.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
-.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
-..
 .sp
 This documentation describes the shell utility \fBsfmanager\fP, which is a CLI for
-the managesf REST API interface in Software Factory..
+the managesf REST API interface in Software Factory.
 .SH INTRODUCTION
 .SS Global options
 .sp
@@ -69,20 +42,79 @@ the remote servers.
 .TP
 .B \-\-url <\fI\%http://sfgateway.dom\fP>
 URL of the managesf instance
+.UNINDENT
+.sp
+Optional:
+.INDENT 0.0
+.TP
+.B \-\-insecure
+Disable SSL certificate verification.
+.TP
+.B \-\-debug
+Enable debug messages in console. Disabled by default
+.TP
+.B \-\-json
+Output command results as JSON, if applicable
+.UNINDENT
+.SS Authentication
+.INDENT 0.0
 .TP
 .B \-\-auth user:password
 Username and password to use when accessing the managesf interface.
 This option is only valid if it is a local user within Software Factory
+.TP
+.B \-\-api\-key abcde1234
+User API key that can be found on the user\(aqs settings page
+.TP
+.B \-\-cookie uid=...
+The HTTP auth cookie, can be found with the developer console in any
+web browser
+.TP
+.B \-\-github\-token kkkk
+A Github API token, if the user is authenticating to Software Factory with
+his/her Github account
+.UNINDENT
+.SS rc file
+.sp
+Rather than writing these global options each time the CLI is used, they can
+be stored in $HOME/.software\-factory.rc:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sf_environment:
+   url: https://sftests.com
+   insecure: true
+   # use one of these auth methods at most. They are listed in priority order
+   # in case several are present.
+   auth:
+     username: admin
+     # password can be omitted if username is provided; it will have to be
+     # manually set within the CLI
+     password: userpass
+     api\-key: edcba
+     cookie: nomnom
+     github\-token: abcde
+   debug: false
+.ft P
+.fi
+.UNINDENT
 .UNINDENT
 .sp
-There are a few optional arguments as well:
+If you are using distinct instances of Software Factory, more environments can
+be defined in the rc file in the same fashion.
+.sp
+To apply an environment configuration, use:
 .INDENT 0.0
-.TP
-.B \-\-insecure
-Disable SSL certificate verification. Enabled by default
-.TP
-.B \-\-debug
-Enable debug messages in console. Disabled by default
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-e sf_environment ...
+.ft P
+.fi
+.UNINDENT
 .UNINDENT
 .SH USER MANAGEMENT
 .sp
@@ -244,21 +276,23 @@ sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
 .fi
 .UNINDENT
 .UNINDENT
-.SH BACKUP AND RESTORE
+.SH BACKUPS
 .sp
-Backups include database dumps from Gerrit, Jenkins, Mysql, cauth and managesf
+Backups include database dumps from Gerrit, Jenkins, MariaDB, cauth and managesf
 as well as some important configuration files like Gerrit replication settings,
-SSH keys and Hiera settings. This includes credentials; please see below how to
-store backups encrypted. Because Mysql is used as the default backend in
-Redmine, Paste and Etherpad all of this data is also included in the backup
-file.
+SSH keys and deployment settings. This includes credentials; please see below how to
+store encrypted backups.
 .SS Create a new backup
 .sp
 SF exposes ways to perform and retrieve a backup of all the user data store in
 your SF installation. This backup can be used in case of disaster to quickly
 recover user data on the same or another SF installation (of the same version).
 .sp
-Only the SF administrator can perform and retrieve a backup.
+By default only the administrator can manage backups. This can be changed by
+editing the rules "managesf.backup:create" and "managesf.backup:get" in the policy
+file in Software Factory\(aqs \fBconfig\fP repository.
+.sp
+To start the backup:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -272,7 +306,7 @@ sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
 .UNINDENT
 .sp
 Once the server generated the tar file of the backup you can then download it with
-the following command
+the following command:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -291,8 +325,9 @@ A file called "sf_backup.tar.gz" will be created in the local directory.
 It is recommended to store the backup files encrypted when using external
 storage services, since the user and administrative credentials are included
 in the backup.
+.sp
 When using the export_backup_swift.sh shell script included in SF, all backups
-are automatically encrypted using GPG before uploading to Swift. A special
+are automatically encrypted using GPG before being uploaded to Swift. A special
 public GPG key is required for this, and it has to be stored on the SF node.
 To create this key, do the following:
 .INDENT 0.0
@@ -308,8 +343,7 @@ gpg \-\-export\-secret\-key \-a sfadmin > sfadmin.key
 .UNINDENT
 .UNINDENT
 .sp
-Make sure you copy keep the sfadmin.key in a safe place. For example, if it is
-encrypted using a strong password store it alongside your backup files.
+Make sure you keep the sfadmin.key in a safe place.
 .sp
 You have to copy this public key to the SF node, and import it as root user.
 .INDENT 0.0
@@ -351,7 +385,7 @@ sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
 .UNINDENT
 .UNINDENT
 .sp
-and to deactivates the password from Gerrit.
+and to deactivate the password from Gerrit.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -359,6 +393,257 @@ and to deactivates the password from Gerrit.
 .ft C
 sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
                gerrit_api_htpasswd delete_password
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH NODEPOOL IMAGES MANAGEMENT
+.sp
+sfmanager can be used to trigger manual updates on nodepool images, whether they
+are based on cloud images or on images built with Disk\-Image\-Builder (DIB).
+.SS List images
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+          image list [\-i image_name] [\-p provider_name]
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS List images (DIB)
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+         dib\-image list [\-i image_name]
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS update images
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+        image update \-i cloud_image_name \-p provider_name
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS update images (DIB)
+.sp
+First, rebuild the DIB image locally:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+       dib\-image update \-i dib_image_name
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Then recreate a cloud image on a provider:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+               dib\-image upload \-i cloud_image_name \-p provider_name
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS get build logs (DIB)
+.sp
+This command will download build logs for a given DIB image:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+       dib\-image logs \-i dib_image_name
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH NODES MANAGEMENT
+.sp
+sfmanager can be used to deal with existing executor nodes.
+.SS list nodes
+.sp
+The following command will list the current nodes spawned by nodepool:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+      node list
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+This will list among other things current nodes\(aq ids, ip addresses, and statuses.
+.SS hold a node
+.sp
+A node can be held so that nodepool will not destroy it once the job it was
+spawned for has completed with the following command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+     node hold \-i node_id
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS inject an SSH key on a node
+.sp
+It is possible to inject an SSH key on a running node to allow someone to log
+into it remotely, with the following command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+     node add\-user\-key \-k /path/to/public_key \-i node_id
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS delete a node
+.sp
+A node can be scheduled for immediate deletion with the following command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+     node delete \-i node_id
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH JOBS MANAGEMENT
+.sp
+sfmanager can be used to manage the execution of jobs.
+.SS list jobs
+.sp
+you can list jobs for a specific job name (for example \fIconfig\-update\fP) with the
+following command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+     job list \-j job\-name
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+the following optional arguments can be used for filtering:
+.INDENT 0.0
+.TP
+.B \-\-c review\-change
+list jobs that were triggered for this specific review number
+.UNINDENT
+.sp
+if \-\-c is used, it can be further filtered with
+.INDENT 0.0
+.TP
+.B \-\-p patchset
+to list jobs that were triggered for a specific patchset of that review
+.UNINDENT
+.SS fetch a job\(aqs parameters
+.sp
+you can list the parameters that were used to trigger a specific job:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+     job parameters \-j job\-name \-i job\-id
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS fetch a job\(aqs logs
+.sp
+you can get the URL where the logs of a specific job are stored:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+     job logs \-j job\-name \-i job\-id
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+the following optional argument can be used:
+.INDENT 0.0
+.TP
+.B \-\-fetch
+downloads and outputs the actual complete logs
+.UNINDENT
+.SS run a job
+.sp
+you can trigger a job manually:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+     job run \-j job\-name
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+optional parameters:
+.INDENT 0.0
+.TP
+.B \-\-parameters \(aq{"param1": "value1", "param2": "value2" ...}\(aq
+a list of parameters to use to run the job. The parameters must be passed
+as a JSON dictionary in the form {"parameter name": "parameter value"}
+.TP
+.B \-\-clone\-from job\-id
+the job will reuse parameters from job\-id. If \-\-parameters is used at the
+same time, the new parameters take precedence.
+.UNINDENT
+.SS stop a job
+.sp
+you can cancel a running job:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+sfmanager \-\-url <http://sfgateway.dom> \-\-auth user:password \e
+     job stop \-j job\-name \-i job\-id
 .ft P
 .fi
 .UNINDENT

@@ -12,7 +12,7 @@ CLI for Software Factory
 ========================
 
 This documentation describes the shell utility **sfmanager**, which is a CLI for
-the managesf REST API interface in Software Factory..
+the managesf REST API interface in Software Factory.
 
 Introduction
 ------------
@@ -220,15 +220,13 @@ For each user, the following information is returned:
 
 .. _managesf_backup:
 
-Backup and restore
-------------------
+Backups
+-------
 
-Backups include database dumps from Gerrit, Jenkins, Mysql, cauth and managesf
+Backups include database dumps from Gerrit, Jenkins, MariaDB, cauth and managesf
 as well as some important configuration files like Gerrit replication settings,
-SSH keys and Hiera settings. This includes credentials; please see below how to
-store backups encrypted. Because Mysql is used as the default backend in
-Redmine, Paste and Etherpad all of this data is also included in the backup
-file.
+SSH keys and deployment settings. This includes credentials; please see below how to
+store encrypted backups.
 
 Create a new backup
 ^^^^^^^^^^^^^^^^^^^
@@ -237,7 +235,11 @@ SF exposes ways to perform and retrieve a backup of all the user data store in
 your SF installation. This backup can be used in case of disaster to quickly
 recover user data on the same or another SF installation (of the same version).
 
-Only the SF administrator can perform and retrieve a backup.
+By default only the administrator can manage backups. This can be changed by
+editing the rules "managesf.backup:create" and "managesf.backup:get" in the policy
+file in Software Factory's **config** repository.
+
+To start the backup:
 
 .. code-block:: bash
 
@@ -245,7 +247,7 @@ Only the SF administrator can perform and retrieve a backup.
            system backup_start
 
 Once the server generated the tar file of the backup you can then download it with
-the following command
+the following command:
 
 .. code-block:: bash
 
@@ -261,8 +263,9 @@ Using GPG to encrypt and decrypt backups
 It is recommended to store the backup files encrypted when using external
 storage services, since the user and administrative credentials are included
 in the backup.
+
 When using the export_backup_swift.sh shell script included in SF, all backups
-are automatically encrypted using GPG before uploading to Swift. A special
+are automatically encrypted using GPG before being uploaded to Swift. A special
 public GPG key is required for this, and it has to be stored on the SF node.
 To create this key, do the following:
 
@@ -272,8 +275,7 @@ To create this key, do the following:
  gpg --export -a sfadmin > sfadmin.pub
  gpg --export-secret-key -a sfadmin > sfadmin.key
 
-Make sure you copy keep the sfadmin.key in a safe place. For example, if it is
-encrypted using a strong password store it alongside your backup files.
+Make sure you keep the sfadmin.key in a safe place.
 
 You have to copy this public key to the SF node, and import it as root user.
 
@@ -300,7 +302,7 @@ is useful for using tools like  `gertty <https://github.com/stackforge/gertty>`_
  sfmanager --url <http://sfgateway.dom> --auth user:password \
                 gerrit_api_htpasswd generate_password
 
-and to deactivates the password from Gerrit.
+and to deactivate the password from Gerrit.
 
 .. code-block:: bash
 
@@ -335,7 +337,7 @@ update images
 .. code-block:: bash
 
  sfmanager --url <http://sfgateway.dom> --auth user:password \
-         image update -i image_name -p provider_name
+         image update -i cloud_image_name -p provider_name
 
 update images (DIB)
 ^^^^^^^^^^^^^^^^^^^
@@ -352,7 +354,7 @@ Then recreate a cloud image on a provider:
 .. code-block:: bash
 
  sfmanager --url <http://sfgateway.dom> --auth user:password \
-                dib-image upload -i image_name -p provider_name
+                dib-image upload -i cloud_image_name -p provider_name
 
 get build logs (DIB)
 ^^^^^^^^^^^^^^^^^^^^
@@ -363,3 +365,134 @@ This command will download build logs for a given DIB image:
 
  sfmanager --url <http://sfgateway.dom> --auth user:password \
         dib-image logs -i dib_image_name
+
+Nodes management
+----------------
+
+sfmanager can be used to deal with existing executor nodes.
+
+list nodes
+^^^^^^^^^^
+
+The following command will list the current nodes spawned by nodepool:
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+       node list
+
+This will list among other things current nodes' ids, ip addresses, and statuses.
+
+hold a node
+^^^^^^^^^^^
+
+A node can be held so that nodepool will not destroy it once the job it was
+spawned for has completed with the following command:
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+      node hold -i node_id
+
+inject an SSH key on a node
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to inject an SSH key on a running node to allow someone to log
+into it remotely, with the following command:
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+      node add-user-key -k /path/to/public_key -i node_id
+
+delete a node
+^^^^^^^^^^^^^
+
+A node can be scheduled for immediate deletion with the following command:
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+      node delete -i node_id
+
+Jobs management
+---------------
+
+sfmanager can be used to manage the execution of jobs.
+
+list jobs
+^^^^^^^^^
+
+you can list jobs for a specific job name (for example *config-update*) with the
+following command:
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+      job list -j job-name
+
+the following optional arguments can be used for filtering:
+
+\--c review-change
+    list jobs that were triggered for this specific review number
+
+if --c is used, it can be further filtered with
+
+\--p patchset
+    to list jobs that were triggered for a specific patchset of that review
+
+
+fetch a job's parameters
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+you can list the parameters that were used to trigger a specific job:
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+      job parameters -j job-name -i job-id
+
+fetch a job's logs
+^^^^^^^^^^^^^^^^^^
+
+you can get the URL where the logs of a specific job are stored:
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+      job logs -j job-name -i job-id
+
+the following optional argument can be used:
+
+\--fetch
+    downloads and outputs the actual complete logs
+
+run a job
+^^^^^^^^^
+
+you can trigger a job manually:
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+      job run -j job-name
+
+optional parameters:
+
+\--parameters '{"param1": "value1", "param2": "value2" ...}'
+    a list of parameters to use to run the job. The parameters must be passed
+    as a JSON dictionary in the form {"parameter name": "parameter value"}
+
+\--clone-from job-id
+    the job will reuse parameters from job-id. If --parameters is used at the
+    same time, the new parameters take precedence.
+
+stop a job
+^^^^^^^^^^
+
+you can cancel a running job:
+
+.. code-block:: bash
+
+ sfmanager --url <http://sfgateway.dom> --auth user:password \
+      job stop -j job-name -i job-id
