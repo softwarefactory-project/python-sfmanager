@@ -1,0 +1,130 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "da9b358b_b8557ac7",
+        "filename": "docs/source/sfmanager.rst",
+        "patchSetId": 2
+      },
+      "lineNbr": 10,
+      "author": {
+        "id": 6
+      },
+      "writtenOn": "2017-05-15T13:43:21Z",
+      "side": 1,
+      "message": "I suggest for each command example to use -e sf instead of repeating --url ... --auth user:password.",
+      "revId": "ab7da2e2ee02f124d331fe89272d43e4d16b73c3",
+      "serverId": "6c1dc8ef-8b94-40e4-bd83-c2359d45ecc0",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "da9b358b_18cfc6b1",
+        "filename": "docs/source/sfmanager.rst",
+        "patchSetId": 2
+      },
+      "lineNbr": 102,
+      "author": {
+        "id": 6
+      },
+      "writtenOn": "2017-05-15T13:43:21Z",
+      "side": 1,
+      "message": "The end of that sentence can be removed I think to be more generic.",
+      "range": {
+        "startLine": 102,
+        "startChar": 42,
+        "endLine": 102,
+        "endChar": 87
+      },
+      "revId": "ab7da2e2ee02f124d331fe89272d43e4d16b73c3",
+      "serverId": "6c1dc8ef-8b94-40e4-bd83-c2359d45ecc0",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "da9b358b_d8c15e82",
+        "filename": "docs/source/sfmanager.rst",
+        "patchSetId": 2
+      },
+      "lineNbr": 291,
+      "author": {
+        "id": 6
+      },
+      "writtenOn": "2017-05-15T13:43:21Z",
+      "side": 1,
+      "message": "I think here we can include the -o option for the ouput file to avoid output to stdout ...\ngpg -o sf_backup.tar.gz -d sf_backup.tar.gz.gpg",
+      "range": {
+        "startLine": 291,
+        "startChar": 1,
+        "endLine": 291,
+        "endChar": 28
+      },
+      "revId": "ab7da2e2ee02f124d331fe89272d43e4d16b73c3",
+      "serverId": "6c1dc8ef-8b94-40e4-bd83-c2359d45ecc0",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "da9b358b_b8be9afd",
+        "filename": "docs/source/sfmanager.rst",
+        "patchSetId": 2
+      },
+      "lineNbr": 305,
+      "author": {
+        "id": 6
+      },
+      "writtenOn": "2017-05-15T13:43:21Z",
+      "side": 1,
+      "message": "A",
+      "range": {
+        "startLine": 305,
+        "startChar": 0,
+        "endLine": 305,
+        "endChar": 1
+      },
+      "revId": "ab7da2e2ee02f124d331fe89272d43e4d16b73c3",
+      "serverId": "6c1dc8ef-8b94-40e4-bd83-c2359d45ecc0",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "da9b358b_9852b6dc",
+        "filename": "docs/source/sfmanager.rst",
+        "patchSetId": 2
+      },
+      "lineNbr": 426,
+      "author": {
+        "id": 6
+      },
+      "writtenOn": "2017-05-15T13:43:21Z",
+      "side": 1,
+      "message": "Y",
+      "range": {
+        "startLine": 426,
+        "startChar": 0,
+        "endLine": 426,
+        "endChar": 1
+      },
+      "revId": "ab7da2e2ee02f124d331fe89272d43e4d16b73c3",
+      "serverId": "6c1dc8ef-8b94-40e4-bd83-c2359d45ecc0",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "da9b358b_785ed2ea",
+        "filename": "docs/source/sfmanager.rst",
+        "patchSetId": 2
+      },
+      "lineNbr": 448,
+      "author": {
+        "id": 6
+      },
+      "writtenOn": "2017-05-15T13:43:21Z",
+      "side": 1,
+      "message": "Please set the first letter uppercase for the consistencies with the rest of that doc.",
+      "revId": "ab7da2e2ee02f124d331fe89272d43e4d16b73c3",
+      "serverId": "6c1dc8ef-8b94-40e4-bd83-c2359d45ecc0",
+      "unresolved": false
+    }
+  ]
+}
