@@ -73,9 +73,9 @@ logger.addHandler(fh_debug)
 requests_log.addHandler(fh_debug)
 
 
-def request(http_method, url, json=None):
+def request(http_method, url, json=None, stream=False):
     return requests.request(http_method, url=url, verify=VERIFY_SSL,
-                            json=json, cookies=COOKIE)
+                            json=json, cookies=COOKIE, stream=stream)
 
 
 def _build_path(old_path):
@@ -921,7 +921,7 @@ def backup_action(args, base_url):
 
     url = build_url(base_url, 'backup')
     if args.subcommand == 'backup_get':
-        resp = request('get', url)
+        resp = request('get', url, stream=True)
         if resp.status_code != 200:
             die("backup_get failed with status_code " + str(resp.status_code))
         chunk_size = 1024
