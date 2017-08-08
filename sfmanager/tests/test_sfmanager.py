@@ -437,14 +437,6 @@ class TestRegisteredUserActions(BaseFunctionalTest):
                            expected_url, returned_json=data)
 
 
-class TestSystemActions(BaseFunctionalTest):
-    def test_backup(self):
-        args = self.default_args
-        args += 'system backup_start'.split()
-        expected_url = self.base_url + 'backup/'
-        self.assert_secure('post', args, sfmanager.backup_action, expected_url)
-
-
 class TestGithubActions(BaseFunctionalTest):
     def test_create_repo(self):
         args = '--github-token ghtoken github create-repo -n reponame'.split()
