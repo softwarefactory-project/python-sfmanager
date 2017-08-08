@@ -241,15 +241,6 @@ def default_arguments(parser):
                         'disabled by default')
 
 
-def system_command(parser):
-    root = parser.add_parser('system', help='system level commands')
-    sub_cmd = root.add_subparsers(dest='subcommand')
-    sub_cmd.add_parser('backup_start',
-                       help='Start the backup process in Software Factory')
-    sub_cmd.add_parser('backup_get',
-                       help='Download the latest backup from Software Factory')
-
-
 def user_management_command(parser):
     uc = parser.add_parser('user',
                            help='local users backend related commands')
@@ -519,7 +510,6 @@ def command_options(parser):
     user_management_command(sp)
     sf_user_management_command(sp)
     gerrit_api_htpassword_command(sp)
-    system_command(sp)
     github_command(sp)
     job_command(sp)
     node_command(sp)
@@ -927,28 +917,6 @@ def job_action(args, base_url):
         return response(resp)
 
 
-def backup_action(args, base_url):
-    if args.command != 'system':
-        return False
-
-    url = build_url(base_url, 'backup')
-    if args.subcommand == 'backup_get':
-        resp = request('get', url, stream=True)
-        if resp.status_code != 200:
-            die("backup_get failed with status_code " + str(resp.status_code))
-        chunk_size = 1024
-        with open('sf_backup.tar.gz', 'wb') as fd:
-            for chunk in resp.iter_content(chunk_size):
-                fd.write(chunk)
-        return True
-
-    elif args.subcommand == 'backup_start':
-        resp = request('post', url)
-        return response(resp)
-
-    return False
-
-
 def gerrit_api_htpasswd_action(args, base_url):
     url = base_url + '/htpasswd'
     if args.command != 'gerrit_api_htpasswd':
@@ -1271,8 +1239,7 @@ def main():
         import urllib3
         urllib3.disable_warnings()
 
-    if not(backup_action(args, base_url) or
-           gerrit_api_htpasswd_action(args, base_url) or
+    if not(gerrit_api_htpasswd_action(args, base_url) or
            user_management_action(args, base_url) or
            github_action(args, base_url) or
            services_users_management_action(args, base_url) or
