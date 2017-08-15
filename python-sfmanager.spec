@@ -31,6 +31,7 @@ BuildRequires:  python-crypto
 BuildRequires:  python-prettytable
 BuildRequires:  python-requests
 BuildRequires:  GitPython
+BuildRequires:  python-sphinx_rtd_theme
 
 %description
 Software Factory command line client
