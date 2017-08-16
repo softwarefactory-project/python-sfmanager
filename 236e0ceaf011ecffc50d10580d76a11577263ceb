@@ -1,0 +1,9 @@
+Code-Review+2: Fabien Boucher <fboucher@redhat.com>
+Code-Review+1: Nicolas HICHER <nhicher@redhat.com>
+Workflow+1: Matthieu Huin <mhuin@redhat.com>
+Verified+2: Jenkins CI <jenkins@softwarefactory-project.io>
+Submitted-by: Jenkins CI <jenkins@softwarefactory-project.io>
+Submitted-at: Wed, 16 Aug 2017 22:36:59 +0000
+Reviewed-on: https://softwarefactory-project.io/r/9251
+Project: software-factory/python-sfmanager
+Branch: refs/heads/master
