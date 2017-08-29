@@ -33,13 +33,6 @@ from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
 from prettytable import PrettyTable
 
-
-try:
-    import http.client as http_client
-except ImportError:
-    # Python 2
-    import httplib as http_client
-
 import sfauth
 
 JSON_OUTPUT = False
@@ -53,25 +46,7 @@ DEFAULT_RC_PATHS = [os.path.join(os.getcwd(), '.software-factory.rc'),
                     '/etc/software-factory/software-factory.rc']
 
 
-requests_log = logging.getLogger("requests.packages.urllib3")
-requests_log.setLevel(logging.DEBUG)
-requests_log.propagate = True
-
-
 logger = logging.getLogger('sfmanager')
-ch = logging.StreamHandler()
-fh_debug = logging.FileHandler('sfmanager.log')
-fh_debug.setLevel(logging.DEBUG)
-info_formatter = '%(levelname)-8s - %(message)s'
-debug_formatter = '%(asctime)s - %(name)-16s - ' + info_formatter
-info_formatter = logging.Formatter(info_formatter)
-debug_formatter = logging.Formatter(debug_formatter)
-fh_debug.setFormatter(debug_formatter)
-
-
-logger.addHandler(ch)
-logger.addHandler(fh_debug)
-requests_log.addHandler(fh_debug)
 
 
 def request(http_method, url, json=None, stream=False):
@@ -1163,6 +1138,12 @@ def main():
             load_rc_file(args)
         except Exception as e:
             die(e.message)
+    fmt = '\033[1;33m%(levelname)-5.5s [%(name)s] %(message)s\033[1;0m'
+    if args.debug:
+        logging.basicConfig(format=fmt, level=logging.DEBUG)
+    else:
+        logging.basicConfig(format=fmt, level=logging.INFO)
+
     globals()['JSON_OUTPUT'] = args.json
     globals()['VERIFY_SSL'] = not args.insecure
 
@@ -1189,14 +1170,6 @@ def main():
             base_url = "%s/manage" % args.url.rstrip('/')
         if args.command == "apikey":
             base_url = "%s/auth" % args.url.rstrip('/')
-
-    if not args.debug:
-        ch.setLevel(logging.ERROR)
-        ch.setFormatter(info_formatter)
-    else:
-        http_client.HTTPConnection.debuglevel = 1
-        ch.setLevel(logging.DEBUG)
-        ch.setFormatter(debug_formatter)
 
     if args.auth_server_url is None:
         args.auth_server_url = args.url
