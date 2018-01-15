@@ -167,8 +167,7 @@ def die(msg):
 
 
 def split_and_strip(s):
-    l = s.split(',')
-    return [x.strip() for x in l]
+    return [x.strip() for x in s.split(',')]
 
 
 def load_rc_file(args):
@@ -585,7 +584,7 @@ def response(resp, quiet=False):
             try:
                 policy = re.search('Failure to comply with policy (.+)\n',
                                    resp.text).groups()[0]
-            except:
+            except Exception:
                 policy = "UNKNOWN"
             msg += '\n\nPolicy enforced: %s' % policy
         else:

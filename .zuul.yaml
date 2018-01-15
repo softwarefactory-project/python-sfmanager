@@ -1,0 +1,11 @@
+---
+- project:
+    name: software-factory/python-sfmanager
+    check:
+      jobs:
+        - tox-pep8
+        - tox-py27
+    gate:
+      jobs:
+        - tox-pep8
+        - tox-py27
