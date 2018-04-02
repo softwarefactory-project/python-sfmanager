@@ -1089,6 +1089,9 @@ def user_management_action(args, base_url):
         if args.subcommand == 'create' and resp.ok and not JSON_OUTPUT:
             pt = PrettyTable(["Username", "Fullname", "Email"])
             i = resp.json()
+            if i == True:
+                print("User updated")
+                return True
             pt.add_row(
                 [i['username'], i['fullname'], i['email']])
             print pt
