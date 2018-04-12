@@ -40,7 +40,7 @@ except ImportError:
     # Python 2
     import httplib as http_client
 
-from pysflib import sfauth
+import sfauth
 
 JSON_OUTPUT = False
 VERIFY_SSL = True

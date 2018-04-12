@@ -2,7 +2,7 @@
 
 Name:           python-sfmanager
 Version:        0.1
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        %{sum}
 
 License:        ASL 2.0
@@ -11,7 +11,6 @@ Source0:        https://github.com/redhat-cip/%{name}/archive/master.tar.gz
 
 BuildArch:      noarch
 
-Requires:       python2-pysflib
 Requires:       PyYAML
 Requires:       python2-urllib3
 Requires:       python-crypto
@@ -24,7 +23,6 @@ Buildrequires:  python-setuptools
 Buildrequires:  python2-pbr
 Buildrequires:  python-nose
 Buildrequires:  python2-mock
-BuildRequires:  python2-pysflib
 BuildRequires:  PyYAML
 BuildRequires:  python2-urllib3
 BuildRequires:  python-crypto
@@ -38,7 +36,6 @@ Software Factory command line client
 
 %package -n python2-sfmanager
 Summary:        %{sum}
-Requires:       python2-pysflib
 Requires:       PyYAML
 Requires:       python2-urllib3
 Requires:       python-crypto
@@ -51,7 +48,6 @@ Buildrequires:  python-setuptools
 Buildrequires:  python2-pbr
 Buildrequires:  python-nose
 Buildrequires:  python2-mock
-BuildRequires:  python2-pysflib
 BuildRequires:  PyYAML
 BuildRequires:  python2-urllib3
 BuildRequires:  python-crypto
@@ -93,6 +89,7 @@ nosetests -v
 
 %files -n python2-sfmanager
 %{python2_sitelib}/*
+%exclude %{python2_sitelib}/*/tests
 %{_bindir}/*
 %config(noreplace) %{_sysconfdir}/*
 %{_mandir}/man1/*.1.gz
@@ -101,6 +98,9 @@ nosetests -v
 /usr/share/doc/python-sfmanager/
 
 %changelog
+* Thu Apr 12 2018 Tristan Cacqueray <tdecacqu@redhat.com> - 0.1-4
+- Remove pysflib requirements
+
 * Mon Mar 20 2017 Tristan Cacqueray <tdecacqu@redhat.com> - 0.1-3
 - Add html documentation
 
