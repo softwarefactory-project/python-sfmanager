@@ -344,20 +344,6 @@ def github_command(parser):
         '--org', '-o', nargs='?', metavar='organization')
 
 
-def gerrit_api_htpassword_command(parser):
-    gah = parser.add_parser('gerrit_api_htpasswd',
-                            help='Gerrit API access commands')
-
-    sub_cmd = gah.add_subparsers(dest='subcommand')
-
-    sub_cmd.add_parser('generate_password',
-                       help='Generate a personal Gerrit API'
-                            ' access htpassword')
-    sub_cmd.add_parser('delete_password',
-                       help='Delete my personal Gerrit API'
-                            ' access htpassword')
-
-
 def project_command(parser):
     project = parser.add_parser('project',
                                 help='project related commands')
@@ -517,7 +503,6 @@ def command_options(parser):
     sp = parser.add_subparsers(dest="command")
     user_management_command(sp)
     sf_user_management_command(sp)
-    gerrit_api_htpassword_command(sp)
     system_command(sp)
     github_command(sp)
     job_command(sp)
@@ -948,23 +933,6 @@ def backup_action(args, base_url):
     return False
 
 
-def gerrit_api_htpasswd_action(args, base_url):
-    url = base_url + '/htpasswd'
-    if args.command != 'gerrit_api_htpasswd':
-        return False
-
-    if args.subcommand not in ['generate_password', 'delete_password']:
-        return False
-
-    if args.subcommand == 'generate_password':
-        resp = request('put', url)
-        return response(resp)
-
-    elif args.subcommand == 'delete_password':
-        resp = request('delete', url)
-        return response(resp, quiet=True)
-
-
 def github_action(args, base_url):
     if args.subcommand not in ['create-repo', 'delete-repo',
                                'deploy-key', 'fork-repo']:
@@ -1274,7 +1242,6 @@ def main():
         urllib3.disable_warnings()
 
     if not(backup_action(args, base_url) or
-           gerrit_api_htpasswd_action(args, base_url) or
            user_management_action(args, base_url) or
            github_action(args, base_url) or
            services_users_management_action(args, base_url) or
