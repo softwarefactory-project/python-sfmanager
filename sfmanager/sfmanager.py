@@ -344,18 +344,21 @@ def github_command(parser):
         '--org', '-o', nargs='?', metavar='organization')
 
 
-def gerrit_api_htpassword_command(parser):
-    gah = parser.add_parser('gerrit_api_htpasswd',
-                            help='Gerrit API access commands')
+def apikey_command(parser):
+    gah = parser.add_parser('apikey',
+                            help='API access commands')
 
     sub_cmd = gah.add_subparsers(dest='subcommand')
 
-    sub_cmd.add_parser('generate_password',
-                       help='Generate a personal Gerrit API'
-                            ' access htpassword')
-    sub_cmd.add_parser('delete_password',
-                       help='Delete my personal Gerrit API'
-                            ' access htpassword')
+    sub_cmd.add_parser('get',
+                       help='Get my personal API'
+                            ' access key')
+    sub_cmd.add_parser('create',
+                       help='Create my personal API'
+                            ' access key')
+    sub_cmd.add_parser('delete',
+                       help='Delete my personal API'
+                            ' access key')
 
 
 def project_command(parser):
@@ -517,7 +520,7 @@ def command_options(parser):
     sp = parser.add_subparsers(dest="command")
     user_management_command(sp)
     sf_user_management_command(sp)
-    gerrit_api_htpassword_command(sp)
+    apikey_command(sp)
     system_command(sp)
     github_command(sp)
     job_command(sp)
@@ -948,19 +951,23 @@ def backup_action(args, base_url):
     return False
 
 
-def gerrit_api_htpasswd_action(args, base_url):
-    url = base_url + '/htpasswd'
-    if args.command != 'gerrit_api_htpasswd':
+def apikey_action(args, base_url):
+    url = base_url + '/apikey'
+    if args.command != 'apikey':
         return False
 
-    if args.subcommand not in ['generate_password', 'delete_password']:
+    if args.subcommand not in ['create', 'delete', 'get']:
         return False
 
-    if args.subcommand == 'generate_password':
-        resp = request('put', url)
+    if args.subcommand == 'get':
+        resp = request('get', url)
         return response(resp)
 
-    elif args.subcommand == 'delete_password':
+    if args.subcommand == 'create':
+        resp = request('post', url)
+        return response(resp)
+
+    if args.subcommand == 'delete':
         resp = request('delete', url)
         return response(resp, quiet=True)
 
@@ -1212,6 +1219,8 @@ def main():
     else:
         if args.command != "github":
             base_url = "%s/manage" % args.url.rstrip('/')
+        if args.command == "apikey":
+            base_url = "%s/auth" % args.url.rstrip('/')
 
     if not args.debug:
         ch.setLevel(logging.ERROR)
@@ -1274,7 +1283,7 @@ def main():
         urllib3.disable_warnings()
 
     if not(backup_action(args, base_url) or
-           gerrit_api_htpasswd_action(args, base_url) or
+           apikey_action(args, base_url) or
            user_management_action(args, base_url) or
            github_action(args, base_url) or
            services_users_management_action(args, base_url) or
