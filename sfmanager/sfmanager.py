@@ -26,6 +26,7 @@ import requests
 import sqlite3
 import sys
 import time
+from datetime import datetime
 import urlparse
 import urllib
 import yaml
@@ -443,6 +444,79 @@ def image_command(parser):
                                   ' compatible with --json option)')
 
 
+def zuul_command(parser):
+    enqueue = parser.add_parser('buildset-enqueue',
+                                help='enqueue a buildset')
+    enqueue.add_argument('--tenant', metavar='local',
+                         help='the tenant, defaults to "local"',
+                         default='local')
+    enqueue.add_argument('--project', metavar='sf/myproject',
+                         help='the project relevant to the buildset',
+                         required=True)
+    enqueue.add_argument('--trigger', metavar='gerrit',
+                         help='the event trigger, defaults to "gerrit". '
+                              'This depends on your SF configuration',
+                         default='gerrit')
+    enqueue.add_argument('--pipeline', metavar='check',
+                         help='the pipeline on which to enqueue the buildset. '
+                              'Defaults to "check"',
+                         default='check')
+    enqueue.add_argument('--change', metavar='1234,5',
+                         help='the change ID to enqueue. Cannot be '
+                              'used with "--ref"')
+    enqueue.add_argument('--ref', metavar='heads/master',
+                         help='the git ref of the change to enqueue. '
+                              'Cannot be used with --change')
+    enqueue.add_argument('--oldrev', metavar='a1b2c3d4',
+                         help='the old revision to use on the git ref',
+                         default='0000000000000000000000000000000000000000')
+    enqueue.add_argument('--newrev', metavar='4d3c2b1a',
+                         help='the new revision to use on the git ref',
+                         default='0000000000000000000000000000000000000000')
+    dequeue = parser.add_parser('buildset-dequeue',
+                                help='dequeue a running buildset')
+    dequeue.add_argument('--tenant', metavar='local',
+                         help='the tenant, defaults to "local"',
+                         default='local')
+    dequeue.add_argument('--project', metavar='sf/myproject',
+                         help='the project relevant to the buildset',
+                         required=True)
+    dequeue.add_argument('--pipeline', metavar='check',
+                         help='the pipeline from which to dequeue the '
+                              'buildset. Defaults to "check"',
+                         default='check')
+    dequeue.add_argument('--change', metavar='1234,5',
+                         help='the change ID to dequeue. Cannot be '
+                              'used with "--ref"')
+    dequeue.add_argument('--ref', metavar='heads/master',
+                         help='the git ref of the change to dequeue. '
+                              'Cannot be used with --change')
+    autohold = parser.add_parser('autohold-build',
+                                 help='request that the nodeset of the next '
+                                      'specific failing build(s) be put '
+                                      'on hold')
+    autohold.add_argument('--tenant', metavar='local',
+                          help='the tenant, defaults to "local"',
+                          default='local')
+    autohold.add_argument('--project', metavar='sf/myproject',
+                          help='the project',
+                          required=True)
+    autohold.add_argument('--job', metavar='tox-py35',
+                          help='the job to hold', required=True)
+    autohold.add_argument('--ref', metavar='heads/master',
+                          help='the git ref, cannot be used with "--change"')
+    autohold.add_argument('--change', metavar='1234,5',
+                          help='the change, cannot be used with "--ref"')
+    autohold.add_argument('--reason', metavar='<reason>',
+                          help='the reason for the autohold request')
+    autohold.add_argument('--count', metavar='1',
+                          help='how many times the nodeset should be held',
+                          type=int, default=1)
+    autohold.add_argument('--node-hold-expiration', metavar='3600',
+                          help='for how long the nodeset should be held',
+                          type=int, default=3600)
+
+
 def dib_image_command(parser):
     dib_image = parser.add_parser('dib-image',
                                   help='dib images related tools')
@@ -493,6 +567,7 @@ def command_options(parser):
     image_command(sp)
     dib_image_command(sp)
     project_command(sp)
+    zuul_command(sp)
 
 
 def get_cookie(args):
@@ -588,7 +663,8 @@ def node_action(args, base_url):
 
     if args.command != 'node':
         return False
-    if args.subcommand not in ['list', 'add-user-key', 'hold', 'delete']:
+    if getattr(args, 'subcommand') not in ['list', 'add-user-key',
+                                           'hold', 'delete']:
         return False
     if args.subcommand == 'list':
         url = build_url(base_url, 'nodes/')
@@ -643,7 +719,8 @@ def node_action(args, base_url):
 def image_action(args, base_url):
     if args.command != 'image':
         return False
-    if args.subcommand not in ['list', 'update', 'update-status', ]:
+    if getattr(args, 'subcommand') not in ['list', 'update',
+                                           'update-status', ]:
         return False
     if args.subcommand == 'update':
         url = build_url(base_url,
@@ -717,7 +794,8 @@ def image_action(args, base_url):
 def dib_image_action(args, base_url):
     if args.command != 'dib-image':
         return False
-    if args.subcommand not in ['list', 'update', 'upload', 'status', 'logs', ]:
+    if getattr(args, 'subcommand') not in ['list', 'update',
+                                           'upload', 'status', 'logs', ]:
         return False
     if args.subcommand == 'logs':
         url = args.url
@@ -798,10 +876,80 @@ def dib_image_action(args, base_url):
         return response(resp)
 
 
+def zuul_action(args, base_url):
+    if args.command not in ['buildset-enqueue', 'buildset-dequeue',
+                            'autohold']:
+        return False
+    # TODO url is "/manage", this should depend on the component.
+    url = build_url(base_url, '../zuul/api/tenant/')
+    url = build_url(url, '%s/project/%s/' % (args.tenant,
+                                             args.project))
+    if args.command == 'buildset-enqueue':
+        if getattr(args, 'change') and getattr(args, 'ref'):
+            die('Cannot use --change and --ref arguments together')
+        url = build_url(url, 'enqueue')
+        data = {'trigger': args.trigger,
+                'pipeline': args.pipeline}
+        if getattr(args, 'change'):
+            data['change'] = args.change
+        elif getattr(args, 'ref'):
+            data['ref'] = args.ref
+            data['oldrev'] = args.oldrev
+            data['newrev'] = args.newrev
+        else:
+            die('Change or ref needed')
+    elif args.command == 'buildset-dequeue':
+        if getattr(args, 'change') and getattr(args, 'ref'):
+            die('Cannot use --change and --ref arguments together')
+        url = build_url(url, 'dequeue')
+        data = {'pipeline': args.pipeline}
+        if getattr(args, 'change'):
+            data['change'] = args.change
+        elif getattr(args, 'ref'):
+            data['ref'] = args.ref
+        else:
+            die('Change or ref needed')
+    elif args.command == 'autohold-build':
+        if getattr(args, 'change') and getattr(args, 'ref'):
+            die('Cannot use --change and --ref arguments together')
+        url = build_url(url, 'autohold')
+        data = {'job': args.job,
+                'reason': getattr(args, 'reason', ''),
+                'count': int(args.count),
+                'node_hold_expiration': int(args.node_hold_expiration)}
+        if data['reason'] == '':
+            user_regex = re.compile('%3Buid%3D(.+?)%3B')
+            user = user_regex.findalll(globals()['COOKIE'])[0]
+            reason = 'Requested by %s with sfmanager on %s'
+            tstamp = datetime.strftime(datetime.now(),
+                                       '%Y/%m/%d %H:%M:%S')
+            data['reason'] = reason % (user, tstamp)
+        if getattr(args, 'change'):
+            data['change'] = args.change
+        elif getattr(args, 'ref'):
+            data['ref'] = args.ref
+        else:
+            die('Change or ref needed')
+    else:
+        die('?')
+    # remove trailing '/'
+    resp = request('post', url[:-1], json=data)
+    if resp.status_code == 401:
+        die('You are not authorized to perform this action. '
+            'Check the "resources" declaration in the "config" '
+            'repository if this should not be the case.')
+    if resp.status_code == 403:
+        die('This action is not enabled.')
+    else:
+        print response(resp)
+        return True
+
+
 def job_action(args, base_url):
     if args.command != 'job':
         return False
-    if args.subcommand not in ['list', 'logs', 'parameters', 'run', 'stop']:
+    if getattr(args, 'subcommand') not in ['list', 'logs',
+                                           'parameters', 'run', 'stop']:
         return False
     job_name = args.job_name
     if args.subcommand == 'list':
@@ -899,7 +1047,7 @@ def apikey_action(args, base_url):
     if args.command != 'apikey':
         return False
 
-    if args.subcommand not in ['create', 'delete', 'get']:
+    if getattr(args, 'subcommand') not in ['create', 'delete', 'get']:
         return False
 
     if args.subcommand == 'get':
@@ -916,8 +1064,8 @@ def apikey_action(args, base_url):
 
 
 def github_action(args, base_url):
-    if args.subcommand not in ['create-repo', 'delete-repo',
-                               'deploy-key', 'fork-repo']:
+    if getattr(args, 'subcommand') not in ['create-repo', 'delete-repo',
+                                           'deploy-key', 'fork-repo']:
         return False
 
     if not args.github_token:
@@ -1015,10 +1163,10 @@ def github_action(args, base_url):
 def user_management_action(args, base_url):
     if args.command != 'user':
         return False
-    if args.subcommand not in ['create', 'update', 'delete']:
+    if getattr(args, 'subcommand') not in ['create', 'update', 'delete']:
         return False
     url = build_url(base_url, 'user', args.username)
-    if args.subcommand in ['create', 'update']:
+    if getattr(args, 'subcommand') in ['create', 'update']:
         password = None
         if args.password is None:
             # -p option has been passed by with no value
@@ -1054,7 +1202,7 @@ def user_management_action(args, base_url):
 def project_action(args, base_url):
     if args.command != 'project':
         return False
-    if args.subcommand not in ['clone']:
+    if getattr(args, 'subcommand') not in ['clone']:
         return False
     url = build_url(base_url, 'resources')
     resources = request('get', url).json()['resources']['projects']
@@ -1096,10 +1244,10 @@ def project_action(args, base_url):
 def services_users_management_action(args, base_url):
     if args.command != 'sf_user':
         return False
-    if args.subcommand not in ['create', 'list', 'delete']:
+    if getattr(args, 'subcommand') not in ['create', 'list', 'delete']:
         return False
     url = build_url(base_url, 'services_users')
-    if args.subcommand in ['create', 'delete']:
+    if getattr(args, 'subcommand') in ['create', 'delete']:
         info = {}
         if getattr(args, 'email', None):
             info['email'] = args.email
@@ -1223,7 +1371,8 @@ def main():
         import urllib3
         urllib3.disable_warnings()
 
-    if not(apikey_action(args, base_url) or
+    if not(zuul_action(args, base_url) or
+           apikey_action(args, base_url) or
            user_management_action(args, base_url) or
            github_action(args, base_url) or
            services_users_management_action(args, base_url) or
