@@ -26,6 +26,7 @@ import requests
 import sqlite3
 import sys
 import time
+from datetime import datetime
 import urlparse
 import urllib
 import yaml
@@ -443,6 +444,79 @@ def image_command(parser):
                                   ' compatible with --json option)')
 
 
+def zuul_command(parser):
+    enqueue = parser.add_parser('buildset-enqueue',
+                                help='enqueue a buildset')
+    enqueue.add_argument('--tenant', metavar='local',
+                         help='the tenant, defaults to "local"',
+                         default='local')
+    enqueue.add_argument('--project', metavar='sf/myproject',
+                         help='the project relevant to the buildset',
+                         required=True)
+    enqueue.add_argument('--trigger', metavar='gerrit',
+                         help='the event trigger, defaults to "gerrit". '
+                              'This depends on your SF configuration',
+                         default='gerrit')
+    enqueue.add_argument('--pipeline', metavar='check',
+                         help='the pipeline on which to enqueue the buildset. '
+                              'Defaults to "check"',
+                         default='check')
+    enqueue.add_argument('--change', metavar='1234,5',
+                         help='the change ID to enqueue. Cannot be '
+                              'used with "--ref"')
+    enqueue.add_argument('--ref', metavar='heads/master',
+                         help='the git ref of the change to enqueue. '
+                              'Cannot be used with --change')
+    enqueue.add_argument('--oldrev', metavar='a1b2c3d4',
+                         help='the old revision to use on the git ref',
+                         default='0000000000000000000000000000000000000000')
+    enqueue.add_argument('--newrev', metavar='4d3c2b1a',
+                         help='the new revision to use on the git ref',
+                         default='0000000000000000000000000000000000000000')
+    dequeue = parser.add_parser('buildset-dequeue',
+                                help='dequeue a running buildset')
+    dequeue.add_argument('--tenant', metavar='local',
+                         help='the tenant, defaults to "local"',
+                         default='local')
+    dequeue.add_argument('--project', metavar='sf/myproject',
+                         help='the project relevant to the buildset',
+                         required=True)
+    dequeue.add_argument('--pipeline', metavar='check',
+                         help='the pipeline from which to dequeue the '
+                              'buildset. Defaults to "check"',
+                         default='check')
+    dequeue.add_argument('--change', metavar='1234,5',
+                         help='the change ID to dequeue. Cannot be '
+                              'used with "--ref"')
+    dequeue.add_argument('--ref', metavar='heads/master',
+                         help='the git ref of the change to dequeue. '
+                              'Cannot be used with --change')
+    autohold = parser.add_parser('autohold-build',
+                                 help='request that the nodeset of the next '
+                                      'specific failing build(s) be put '
+                                      'on hold')
+    autohold.add_argument('--tenant', metavar='local',
+                          help='the tenant, defaults to "local"',
+                          default='local')
+    autohold.add_argument('--project', metavar='sf/myproject',
+                          help='the project',
+                          required=True)
+    autohold.add_argument('--job', metavar='tox-py35',
+                          help='the job to hold', required=True)
+    autohold.add_argument('--ref', metavar='heads/master',
+                          help='the git ref, cannot be used with "--change"')
+    autohold.add_argument('--change', metavar='1234,5',
+                          help='the change, cannot be used with "--ref"')
+    autohold.add_argument('--reason', metavar='<reason>',
+                          help='the reason for the autohold request')
+    autohold.add_argument('--count', metavar='1',
+                          help='how many times the nodeset should be held',
+                          type=int, default=1)
+    autohold.add_argument('--node-hold-expiration', metavar='3600',
+                          help='for how long the nodeset should be held',
+                          type=int, default=3600)
+
+
 def dib_image_command(parser):
     dib_image = parser.add_parser('dib-image',
                                   help='dib images related tools')
@@ -493,6 +567,7 @@ def command_options(parser):
     image_command(sp)
     dib_image_command(sp)
     project_command(sp)
+    zuul_command(sp)
 
 
 def get_cookie(args):
@@ -796,6 +871,74 @@ def dib_image_action(args, base_url):
                 print pt
             return True
         return response(resp)
+
+
+def zuul_action(args, base_url):
+    if args.command not in ['buildset-enqueue', 'buildset-dequeue',
+                            'autohold']:
+        return False
+    # TODO url is "/manage", this should depend on the component.
+    url = build_url(base_url, '../zuul/api/tenant/')
+    url = build_url(url, '%s/project/%s/' % (args.tenant,
+                                             args.project))
+    if args.command == 'buildset-enqueue':
+        if getattr(args, 'change') and getattr(args, 'ref'):
+            die('Cannot use --change and --ref arguments together')
+        url = build_url(url, 'enqueue')
+        data = {'trigger': args.trigger,
+                'pipeline': args.pipeline}
+        if getattr(args, 'change'):
+            data['change'] = args.change
+        elif getattr(args, 'ref'):
+            data['ref'] = args.ref
+            data['oldrev'] = args.oldrev
+            data['newrev'] = args.newrev
+        else:
+            die('Change or ref needed')
+    elif args.command == 'buildset-dequeue':
+        if getattr(args, 'change') and getattr(args, 'ref'):
+            die('Cannot use --change and --ref arguments together')
+        url = build_url(url, 'dequeue')
+        data = {'pipeline': args.pipeline}
+        if getattr(args, 'change'):
+            data['change'] = args.change
+        elif getattr(args, 'ref'):
+            data['ref'] = args.ref
+        else:
+            die('Change or ref needed')
+    elif args.command == 'autohold-build':
+        if getattr(args, 'change') and getattr(args, 'ref'):
+            die('Cannot use --change and --ref arguments together')
+        url = build_url(url, 'autohold')
+        data = {'job': args.job,
+                'reason': getattr(args, 'reason', ''),
+                'count': int(args.count),
+                'node_hold_expiration': int(args.node_hold_expiration)}
+        if data['reason'] == '':
+            user_regex = re.compile('%3Buid%3D(.+?)%3B')
+            user = user_regex.findalll(globals()['COOKIE'])[0]
+            reason = 'Requested by %s with sfmanager on %s'
+            tstamp = datetime.strftime(datetime.now(),
+                                       '%Y/%m/%d %H:%M:%S')
+            data['reason'] = reason % (user, tstamp)
+        if getattr(args, 'change'):
+            data['change'] = args.change
+        elif getattr(args, 'ref'):
+            data['ref'] = args.ref
+        else:
+            die('Change or ref needed')
+    else:
+        die('?')
+    resp = request('post', url, json=data)
+    if resp.status_code == 401:
+        die('You are not authorized to perform this action. '
+            'Check the "resources" declaration in the "config" '
+            'repository if this should not be the case.')
+    if resp.status_code == 403:
+        die('This action is not enabled.')
+    else:
+        print response(resp)
+        return True
 
 
 def job_action(args, base_url):
@@ -1231,7 +1374,8 @@ def main():
            node_action(args, base_url) or
            image_action(args, base_url) or
            dib_image_action(args, base_url) or
-           project_action(args, base_url)):
+           project_action(args, base_url) or
+           zuul_action(args, base_url)):
         die("ManageSF failed to execute your command")
 
 
