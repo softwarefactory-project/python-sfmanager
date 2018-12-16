@@ -1,6 +1,6 @@
 requests
-pycrypto==2.6.1
-urllib3==1.21.1
-PrettyTable<0.8,>=0.7
-pyyaml==3.11
-GitPython==2.1.3
+pycrypto
+urllib3
+PrettyTable
+pyyaml
+GitPython
