@@ -1083,7 +1083,7 @@ def project_action(args, base_url):
                 origin = repo.create_remote('origin', c_uri)
             output = repo.git.remote("show", "origin").splitlines()
             head = [l.split(':')[-1].strip() for l in output if
-                    re.match("^\s+HEAD branch: .+$", l)][0]
+                    re.match(r"^\s+HEAD branch: .+$", l)][0]
             repo.git.config("http.sslVerify", "%s" % (not args.insecure))
             origin.fetch(head)
             if not light_update:
