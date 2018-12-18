@@ -1,0 +1,8 @@
+Code-Review+2: Nicolas HICHER <nhicher@redhat.com>
+Workflow+1: Fabien Boucher <fboucher@redhat.com>
+Verified+2: Zuul CI <zuul@softwarefactory-project.io>
+Submitted-by: Zuul CI <zuul@softwarefactory-project.io>
+Submitted-at: Tue, 18 Dec 2018 13:59:08 +0000
+Reviewed-on: https://softwarefactory-project.io/r/14638
+Project: software-factory/python-sfmanager
+Branch: refs/heads/master
