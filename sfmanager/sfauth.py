@@ -15,7 +15,10 @@
 # under the License.
 
 import json
-import urlparse
+try:
+    from urlparse import urlparse
+except ImportError:
+    from urllib.parse import urlparse
 import requests
 
 
@@ -33,7 +36,7 @@ def get_cookie(auth_server,
     #       I8df68b7f74344371e4b45b4a6d1cc3362b70b61e is merged
     if use_ssl is False:
         use_ssl = True
-    if urlparse.urlparse(auth_server).scheme == '':
+    if urlparse(auth_server).scheme == '':
         auth_server = "https://%s" % auth_server
     cauth_info = get_cauth_info(auth_server, verify)
     url = "%s/auth/login" % auth_server

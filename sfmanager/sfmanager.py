@@ -26,14 +26,16 @@ import requests
 import sqlite3
 import sys
 import time
-import urlparse
-import urllib
+try:
+    from urlparse import urlparse
+except ImportError:
+    from urllib.parse import urlparse
 import yaml
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
 from prettytable import PrettyTable
 
-import sfauth
+from . import sfauth
 
 JSON_OUTPUT = False
 VERIFY_SSL = True
@@ -337,161 +339,12 @@ def project_command(parser):
     clone.add_argument('--dest-path', '-d', required=True)
 
 
-def job_command(parser):
-    job = parser.add_parser('job',
-                            help='jobs related tools')
-    subc = job.add_subparsers(dest='subcommand')
-    list = subc.add_parser('list',
-                           help='list jobs statuses')
-    list.add_argument('--job-name', '-j', metavar='job-name',
-                      required=True)
-    list.add_argument('--id', '-i', metavar='job-id',
-                      required=False)
-    list.add_argument('--change', '-c', metavar='review-change',
-                      required=False)
-    list.add_argument('--patchset', '-p', metavar='change-patchset',
-                      required=False)
-    logs = subc.add_parser('logs',
-                           help='show the logs of a job')
-    logs.add_argument('--job-name', '-j', metavar='job-name',
-                      required=True)
-    logs.add_argument('--id', '-i', metavar='job-id',
-                      required=True)
-    logs.add_argument('--fetch', default=False, action='store_true',
-                      help='if enabled, attempts downloading the logs'
-                           ' and displays them to stdout (not compatible'
-                           ' with --json option)')
-    params = subc.add_parser('parameters',
-                             help='show the parameters used by a job')
-    params.add_argument('--job-name', '-j', metavar='job-name',
-                        required=True)
-    params.add_argument('--id', '-i', metavar='job-id',
-                        required=True)
-    run = subc.add_parser('run',
-                          help='run a new job')
-    run.add_argument('--job-name', '-j', metavar='job-name',
-                     required=True)
-    run.add_argument('--parameters', '-p', metavar='{"name": "value"}',
-                     required=False)
-    run.add_argument('--clone-from', '-c', metavar='job-id',
-                     required=False,
-                     help='run this job with the same parameters as <job-id>.'
-                          ' if --parameters are used, they override the'
-                          ' parameters of the cloned job.')
-    stop = subc.add_parser('stop',
-                           help='stop a running job')
-    stop.add_argument('--job-name', '-j', metavar='job-name',
-                      required=True)
-    stop.add_argument('--id', '-i', metavar='job-id',
-                      required=True)
-
-
-def node_command(parser):
-    node = parser.add_parser('node',
-                             help='nodes related tools')
-    subc = node.add_subparsers(dest='subcommand')
-    list = subc.add_parser('list',
-                           help='list information about nodes currently up')
-    list.add_argument('--id', '-i', metavar='node-id',
-                      required=False)
-    aduk = subc.add_parser('add-user-key',
-                           help=('Add a SSH public key to the list of '
-                                 'authorized keys on node node-id'))
-    aduk.add_argument('--key', '-k', metavar='/path/to/public_key',
-                      required=False)
-    aduk.add_argument('--id', '-i', metavar='node-id',
-                      required=True)
-    hold = subc.add_parser('hold',
-                           help='prevent a node from being deleted after'
-                                ' a job has run its course')
-    hold.add_argument('--id', '-i', metavar='node-id',
-                      required=True)
-    delete = subc.add_parser('delete',
-                             help='schedule a node for immediate deletion')
-    delete.add_argument('--id', '-i', metavar='node-id',
-                        required=True)
-
-
-def image_command(parser):
-    image = parser.add_parser('image',
-                              help='images related tools')
-    subc = image.add_subparsers(dest='subcommand')
-    imagelist = subc.add_parser('list',
-                                help='list information about images available'
-                                     ' to spawn nodes')
-    imagelist.add_argument('--provider', '-p', metavar='provider-name',
-                           required=True)
-    imagelist.add_argument('--image', '-i', metavar='image-name',
-                           required=False)
-    imageupdate = subc.add_parser('update',
-                                  help='trigger the update of an image')
-    imageupdate.add_argument('--provider', '-p', metavar='provider-name',
-                             required=True)
-    imageupdate.add_argument('--image', '-i', metavar='image-name',
-                             required=True)
-    imagestatus = subc.add_parser('update-status',
-                                  help='check the status of an update')
-    imagestatus.add_argument('--update-id', '-u', metavar='update-id',
-                             required=True)
-    imagestatus.add_argument('--fetch', default=False, action='store_true',
-                             help='if enabled, attempts downloading the build'
-                                  ' logs and displays them to stdout (not'
-                                  ' compatible with --json option)')
-    imagestatus.add_argument('--fetch-all', default=False, action='store_true',
-                             help='if enabled, attempts downloading the full'
-                                  ' logs and displays them to stdout (not'
-                                  ' compatible with --json option)')
-
-
-def dib_image_command(parser):
-    dib_image = parser.add_parser('dib-image',
-                                  help='dib images related tools')
-    subc = dib_image.add_subparsers(dest='subcommand')
-    dib_imagelist = subc.add_parser('list',
-                                    help='list information about images '
-                                    'available to spawn nodes (dib)')
-    dib_imagelist.add_argument('--image', '-i', metavar='image-name',
-                               required=False)
-    dib_imageupdate = subc.add_parser('update',
-                                      help='trigger the local rebuild of '
-                                           'an image')
-    dib_imageupdate.add_argument('--image', '-i', metavar='image-name',
-                                 required=True)
-    dib_imageupload = subc.add_parser('upload',
-                                      help='trigger the upload of '
-                                           'an image to a cloud provider')
-    dib_imageupload.add_argument('--provider', '-p', metavar='provider-name',
-                                 required=True)
-    dib_imageupload.add_argument('--image', '-i', metavar='image-name',
-                                 required=True)
-    dib_imagestatus = subc.add_parser('status',
-                                      help='check the status of an update '
-                                           'or an upload')
-    dib_imagestatus.add_argument('--id', '-a', metavar='action-id',
-                                 required=True)
-    dib_imagestatus.add_argument('--fetch', default=False, action='store_true',
-                                 help='if enabled, attempts downloading the '
-                                      'nodepool command logs and displays '
-                                      'them to stdout (not compatible with '
-                                      '--json option)')
-    dib_imagelogs = subc.add_parser('logs',
-                                    help='download the build logs of a dib'
-                                         'image')
-    dib_imagelogs.add_argument('--image', '-i', metavar='dibimage-name',
-                               help='download the build logs of a given '
-                                    'dib image.')
-
-
 def command_options(parser):
     sp = parser.add_subparsers(dest="command")
     user_management_command(sp)
     sf_user_management_command(sp)
     apikey_command(sp)
     github_command(sp)
-    job_command(sp)
-    node_command(sp)
-    image_command(sp)
-    dib_image_command(sp)
     project_command(sp)
 
 
@@ -534,13 +387,13 @@ def response(resp, quiet=False):
                 # prettyfied output so load the json string
                 # from the response and dump it with indent
                 # to pretty print it by keeping valid json
-                print json.dumps(resp.json(), indent=2)
+                print(json.dumps(resp.json(), indent=2))
             elif content_json:
                 # Response if json but user does not ask
                 # for json output so return str of python object
-                print resp.json()
+                print(resp.json())
             else:
-                print resp.text
+                print(resp.text)
         return True
     if resp.status_code // 100 == 4:
         if resp.status_code == 409:
@@ -567,331 +420,6 @@ def response(resp, quiet=False):
 
 def build_url(*args):
     return '/'.join(s.strip('/') for s in args) + '/'
-
-
-def node_action(args, base_url):
-
-    def print_pt(resp):
-        for service in resp.json():
-            print "\nNode(s) managed by service %s:\n" % service
-            pt = PrettyTable(['ID', 'provider', 'AZ', 'label', 'target',
-                              'manager', 'hostname', 'node name',
-                              'server ID', 'IP', 'state',
-                              'age (seconds)'])
-            for i in resp.json()[service]:
-                pt.add_row(
-                    [i['node_id'], i['provider_name'], i['AZ'],
-                     i['label'], i['target'], i['manager'],
-                     i['hostname'], i['node_name'], i['server_id'],
-                     i['ip'], i['state'], i['age'], ])
-            print pt
-
-    if args.command != 'node':
-        return False
-    if args.subcommand not in ['list', 'add-user-key', 'hold', 'delete']:
-        return False
-    if args.subcommand == 'list':
-        url = build_url(base_url, 'nodes/')
-        if getattr(args, 'id'):
-            url = build_url(url, 'id/%s' % args.id)
-        resp = request('get', url)
-        if resp.ok and not JSON_OUTPUT:
-            print_pt(resp)
-            return True
-        return response(resp)
-    if args.subcommand == 'add-user-key':
-        url = build_url(base_url, 'nodes/id/%s/authorize_key/' % args.id)
-        try:
-            key_contents = file(args.key).read()
-        except IOError as e:
-            die(unicode(e))
-        data = {'public_key': key_contents}
-        resp = request('post', url, json=data)
-        if resp.ok:
-            url = build_url(base_url, 'nodes/id/%s' % args.id)
-            resp = request('get', url)
-            for service in resp.json():
-                cmd = "ssh -o StrictHostKeyChecking=no jenkins@%s"
-                cmd = cmd % resp.json()[service][0]['ip']
-                msg = "Key added on %s; node can be reached via command: %s"
-                print msg % (resp.json()[service][0]['node_name'],
-                             cmd)
-            return True
-        else:
-            if resp.json():
-                msg = "Key not added because of following error: %s"
-                service = resp.json().keys()[0]
-                die(msg % resp.json()[service]["error_description"])
-            else:
-                die(resp.body)
-    if args.subcommand == 'hold':
-        url = build_url(base_url, 'nodes/id/%s' % args.id)
-        resp = request('put', url)
-        if resp.ok and not JSON_OUTPUT:
-            print_pt(resp)
-            return True
-        return response(resp)
-    if args.subcommand == 'delete':
-        url = build_url(base_url, 'nodes/id/%s' % args.id)
-        resp = request('delete', url)
-        if resp.ok and not JSON_OUTPUT:
-            print_pt(resp)
-            return True
-        return response(resp)
-
-
-def image_action(args, base_url):
-    if args.command != 'image':
-        return False
-    if args.subcommand not in ['list', 'update', 'update-status', ]:
-        return False
-    if args.subcommand == 'update':
-        url = build_url(base_url,
-                        'nodes/images/update/%s/%s' % (args.image,
-                                                       args.provider))
-        resp = request('put', url)
-        if resp.ok and not JSON_OUTPUT:
-            for service in resp.json():
-                msg = ("Image %s on provider %s is being updated.\n"
-                       "To check the status of the update, please run "
-                       "'sfmanager image update-status --update-id %s'")
-                print msg % (args.provider, args.image,
-                             resp.json()[service]['update_id'])
-            return True
-        return response(resp)
-    if args.subcommand == 'update-status':
-        url = build_url(base_url, 'nodes/images/update/%s' % args.update_id)
-        resp = request('get', url)
-        if resp.ok and not JSON_OUTPUT:
-            for service in resp.json():
-                status = resp.json()[service]
-                buildlog = re.compile('^(.+) (INFO|DEBUG|ERR.*|'
-                                      'NOTICE|WARN.*|CRIT|ALERT|EMERG|PANIC) '
-                                      'nodepool.image.build.+: (.+)$')
-                if args.fetch_all or args.fetch:
-                    if args.fetch:
-                        for line in status['output'].split('\n'):
-                            if buildlog.match(line):
-                                m = buildlog.match(line).groups()
-                                print m[0] + '\t' + m[-1]
-                    else:
-                        print status['output']
-                else:
-                    base_fields = ['ID', 'status', 'image',
-                                   'provider']
-                    base_values = [status['id'], status['status'],
-                                   status['image'], status['provider']]
-                    if status['status'] in ['SUCCESS', 'FAILURE']:
-                        base_fields.append('exit code')
-                        base_values.append(status['exit_code'])
-                        if int(status['exit_code']) > 0:
-                            base_fields.append('error')
-                            base_values.append(status['error'])
-                    pt = PrettyTable(base_fields)
-                    pt.add_row(base_values)
-                    print pt
-            return True
-        return response(resp)
-    if args.subcommand == 'list':
-        url = build_url(base_url, 'nodes/images/')
-        url += getattr(args, 'image') is None and '/' or '%s/' % args.image
-        url += (getattr(args, 'provider') is None and '/' or
-                '%s/' % args.provider)
-        resp = request('get', url)
-        if resp.ok and not JSON_OUTPUT:
-            for service in resp.json():
-                print "\nImage(s) managed by service %s:\n" % service
-                pt = PrettyTable(['ID', 'provider', 'image',
-                                  'hostname', 'version', 'image ID',
-                                  'server ID', 'state', 'age (seconds)'])
-                for i in resp.json()[service]:
-                    pt.add_row(
-                        [i['id'], i['provider_name'], i['image_name'],
-                         i['hostname'], i['version'], i['image_id'],
-                         i['server_id'], i['state'], i['age'], ])
-                print pt
-            return True
-        return response(resp)
-
-
-def dib_image_action(args, base_url):
-    if args.command != 'dib-image':
-        return False
-    if args.subcommand not in ['list', 'update', 'upload', 'status', 'logs', ]:
-        return False
-    if args.subcommand == 'logs':
-        url = args.url
-        if url.endswith('/'):
-            url += 'nodepool-log/%s.log' % args.image
-        else:
-            url += '/nodepool-log/%s.log' % args.image
-        resp = request('get', url)
-        if resp.ok:
-            print resp.text
-            return True
-        return response(resp)
-    if args.subcommand == 'update':
-        url = build_url(base_url,
-                        'nodes/dib_images/update/%s/' % args.image)
-        resp = request('put', url)
-        if resp.ok and not JSON_OUTPUT:
-            for service in resp.json():
-                msg = ("Image %s is being rebuilt.\n"
-                       "To check the status of the build, please run "
-                       "'sfmanager dib-image status --id %s'")
-                print msg % (args.image, resp.json()[service]['update_id'])
-            return True
-        return response(resp)
-    if args.subcommand == 'upload':
-        x = (getattr(args, 'image'), getattr(args, 'provider'))
-        url = build_url(base_url,
-                        'nodes/dib_images/update/%s/%s/' % x)
-        resp = request('post', url)
-        if resp.ok and not JSON_OUTPUT:
-            for service in resp.json():
-                msg = ("Image %s on provider %s is being updated.\n"
-                       "To check the status of the update, please run "
-                       "'sfmanager dib-image status --id %s'")
-                print msg % (args.provider, args.image,
-                             resp.json()[service]['update_id'])
-            return True
-        return response(resp)
-    if args.subcommand == 'status':
-        url = build_url(base_url, 'nodes/dib_images/update/%s' % args.id)
-        resp = request('get', url)
-        if resp.ok and not JSON_OUTPUT:
-            for service in resp.json():
-                status = resp.json()[service]
-                if args.fetch:
-                    print status['output']
-                else:
-                    base_fields = ['ID', 'status', 'image',
-                                   'provider']
-                    base_values = [status['id'], status['status'],
-                                   status['image'], status['provider']]
-                    if status['status'] in ['SUCCESS', 'FAILURE']:
-                        base_fields.append('exit code')
-                        base_values.append(status['exit_code'])
-                        if int(status['exit_code']) > 0:
-                            base_fields.append('error')
-                            base_values.append(status['error'])
-                    pt = PrettyTable(base_fields)
-                    pt.add_row(base_values)
-                    print pt
-            return True
-        return response(resp)
-    if args.subcommand == 'list':
-        url = build_url(base_url, 'nodes/dib_images/')
-        url = build_url(url, '%s/' % True and getattr(args, 'image') or '')
-        resp = request('get', url)
-        if resp.ok and not JSON_OUTPUT:
-            for service in resp.json():
-                print "\nImage(s) managed by service %s:\n" % service
-                pt = PrettyTable(['ID', 'image', 'version', 'file name',
-                                  'state', 'age (seconds)'])
-                for i in resp.json()[service]:
-                    pt.add_row(
-                        [i['id'], i['image'], i['version'], i['filename'],
-                         i['state'], i['age'], ])
-                print pt
-            return True
-        return response(resp)
-
-
-def job_action(args, base_url):
-    if args.command != 'job':
-        return False
-    if args.subcommand not in ['list', 'logs', 'parameters', 'run', 'stop']:
-        return False
-    job_name = args.job_name
-    if args.subcommand == 'list':
-        url = build_url(base_url, 'jobs/%s' % job_name)
-        if getattr(args, 'id'):
-            url = build_url(url, 'id/%s' % args.id)
-        if getattr(args, 'change'):
-            url += '?change=%s' % urllib.quote_plus(args.change)
-            if getattr(args, 'patchset'):
-                url += '&patchset=%s' % urllib.quote_plus(args.patchset)
-        resp = request('get', url)
-        if resp.ok and not JSON_OUTPUT:
-            for service in resp.json():
-                print "\nJob(s) run by service %s:\n" % service
-                pt = PrettyTable(["name", "id", "status"])
-                for i in resp.json()[service]:
-                    pt.add_row(
-                        [i['job_name'], i['job_id'], i['status']])
-                print pt
-            return True
-        return response(resp)
-    if args.subcommand == 'logs':
-        url = build_url(base_url, 'jobs/%s/id/%s/logs' % (job_name, args.id))
-        resp = request('get', url)
-        if resp.ok and not JSON_OUTPUT:
-            if getattr(args, 'fetch'):
-                for service in resp.json():
-                    url = resp.json()[service]['logs_url']
-                    print "\nJob run by service %s, at %s:\n" % (service, url)
-                    print request('get', url).text
-                return True
-        return response(resp)
-    if args.subcommand == 'parameters':
-        url = build_url(base_url,
-                        'jobs/%s/id/%s/parameters' % (job_name, args.id))
-        resp = request('get', url)
-        if resp.ok and not JSON_OUTPUT:
-            for service in resp.json():
-                pt = PrettyTable(["name", "value"])
-                for i in resp.json()[service]['parameters']:
-                    pt.add_row(
-                        [i['name'], i['value']])
-                print pt
-            return True
-        return response(resp)
-    if args.subcommand == 'run':
-        url = build_url(base_url, 'jobs/%s/' % (job_name, ))
-        data = {}
-        if getattr(args, 'parameters'):
-            data = json.loads(args.parameters)
-        if getattr(args, 'clone_from'):
-            id = args.clone_from
-            p_url = build_url(base_url,
-                              'jobs/%s/id/%s/parameters' % (job_name, id))
-            resp = request('get', p_url)
-            if resp.ok:
-                print resp.json()
-                # There's usually only one, careful if we bump it
-                for s in resp.json():
-                    cloned = dict((u['name'], u['value'])
-                                  for u in resp.json()[s]['parameters'])
-                    cloned.update(data)
-                    data = cloned
-            else:
-                print "Could not fetch parameters for job %s:%s" % (job_name,
-                                                                    id)
-        resp = request('post', url, json=data)
-        if resp.ok and not JSON_OUTPUT:
-            for service in resp.json():
-                print "\nJob(s) started by service %s:\n" % service
-                pt = PrettyTable(["name", "id", "status"])
-                i = resp.json()[service]
-                pt.add_row(
-                    [i['job_name'], i['job_id'], i['status']])
-                print pt
-            return True
-        return response(resp)
-    if args.subcommand == 'stop':
-        url = build_url(base_url, 'jobs/%s/id/%s/' % (job_name, args.id))
-        resp = request('delete', url)
-        if resp.ok and not JSON_OUTPUT:
-            for service in resp.json():
-                print "\nJob(s) stopped by service %s:\n" % service
-                pt = PrettyTable(["name", "id", "status"])
-                i = resp.json()[service]
-                pt.add_row(
-                    [i['job_name'], i['job_id'], i['status']])
-                print pt
-            return True
-        return response(resp)
 
 
 def apikey_action(args, base_url):
@@ -937,11 +465,11 @@ def github_action(args, base_url):
             url = "https://api.github.com/user/repos"
         resp = requests.post(url, headers=headers, json=data)
         if resp.status_code == requests.codes.created:
-            print "Github repo %s created." % args.name
+            print("Github repo %s created." % args.name)
         return response(resp, quiet=True)
 
     elif args.subcommand == 'fork-repo':
-        parsed = urlparse.urlparse(args.fork)
+        parsed = urlparse(args.fork)
         if not parsed.netloc:
             logger.info("Invalid original repo url.")
             return
@@ -953,7 +481,7 @@ def github_action(args, base_url):
             data = {'organization': args.org}
         resp1 = requests.post(url, headers=headers, json=data)
         if resp1.status_code == requests.codes.accepted:
-            print "Github repo %s forked." % repo
+            print("Github repo %s forked." % repo)
         if args.name:
             data = {'name': args.name}
             if args.org:
@@ -963,7 +491,7 @@ def github_action(args, base_url):
             url = "https://api.github.com/repos/%s/%s" % (owner, repo)
             resp2 = requests.patch(url, headers=headers, json=data)
             if resp2.status_code == requests.codes.ok:
-                print "Github repo renamed from %s to %s" % (repo, args.name)
+                print("Github repo renamed from %s to %s" % (repo, args.name))
             return response(resp2, quiet=True)
         else:
             return response(resp1, quiet=True)
@@ -980,7 +508,7 @@ def github_action(args, base_url):
 
         resp = requests.delete(url, headers=headers)
         if resp.status_code == requests.codes.no_content:
-            print "Github repo %s deleted." % args.name
+            print("Github repo %s deleted." % args.name)
         return response(resp)
 
     elif args.subcommand == "deploy-key":
@@ -1005,8 +533,8 @@ def github_action(args, base_url):
             resp = requests.post(url, headers=headers, json=data)
 
             if resp.status_code == requests.codes.created:
-                print "SSH deploy key %s added to Github repo %s." % (
-                    args.keyfile, args.name)
+                print("SSH deploy key %s added to Github repo %s." % (
+                    args.keyfile, args.name))
             return response(resp, quiet=True)
 
     return False
@@ -1044,7 +572,7 @@ def user_management_action(args, base_url):
                 return True
             pt.add_row(
                 [i['username'], i['fullname'], i['email']])
-            print pt
+            print(pt)
             return True
     if args.subcommand == 'delete':
         resp = request('delete', url)
@@ -1060,17 +588,17 @@ def project_action(args, base_url):
     resources = request('get', url).json()['resources']['projects']
     if args.subcommand == 'clone':
         if args.project not in resources.keys():
-            print "Requested project %s cannot be found" % args.project
+            print("Requested project %s cannot be found" % args.project)
             return False
         path = os.path.expanduser(args.dest_path)
         if not os.path.isdir(path):
-            print "Creating %s" % path
+            print("Creating %s" % path)
             os.mkdir(path)
         for repo in resources[args.project]['source-repositories']:
             c_uri = build_url(base_url.replace('manage', 'r'),
                               repo).rstrip('/')
-            print "Fetching %s in %s ..." % (
-                repo, os.path.join(path, repo))
+            print("Fetching %s in %s ..." % (
+                repo, os.path.join(path, repo)))
             if os.path.isdir(os.path.join(path, repo, '.git')):
                 # Already exist just fetch the refs
                 light_update = True
@@ -1087,7 +615,7 @@ def project_action(args, base_url):
             repo.git.config("http.sslVerify", "%s" % (not args.insecure))
             origin.fetch(head)
             if not light_update:
-                print "Checkout %s ..." % head
+                print("Checkout %s ..." % head)
                 origin.pull(head)
             repo.git.branch(head, set_upstream_to="origin/%s" % head)
     return True
@@ -1104,7 +632,7 @@ def services_users_management_action(args, base_url):
         if getattr(args, 'email', None):
             info['email'] = args.email
         if getattr(args, 'username', None):
-                info['username'] = args.username
+            info['username'] = args.username
         if getattr(args, 'fullname', None):
             info['full_name'] = ' '.join(args.fullname)
     if args.subcommand == 'create':
@@ -1120,7 +648,7 @@ def services_users_management_action(args, base_url):
                 pt.add_row(
                     [i['id'], i['username'], i['fullname'], i['email'],
                      i['cauth_id']])
-            print pt
+            print(pt)
             return True
         else:
             return response(resp)
@@ -1164,7 +692,7 @@ def main():
         if args.command != "github":
             parser.error('argument --url is required')
     if args.url and not args.url.lower().startswith('http'):
-            parser.error('missing protocol in argument --url: %s' % args.url)
+        parser.error('missing protocol in argument --url: %s' % args.url)
     else:
         if args.command != "github":
             base_url = "%s/manage" % args.url.rstrip('/')
@@ -1184,7 +712,7 @@ def main():
        args.github_token is None and
        args.api_key is None and
        not (args.command == 'project' and args.subcommand == 'clone')):
-        host = urlparse.urlsplit(args.url).hostname
+        host = urlparse(args.url).hostname
         logger.info("No authentication provided, looking for an existing "
                     "cookie for host %s... " % host),
         # try Chrome
@@ -1227,10 +755,6 @@ def main():
            user_management_action(args, base_url) or
            github_action(args, base_url) or
            services_users_management_action(args, base_url) or
-           job_action(args, base_url) or
-           node_action(args, base_url) or
-           image_action(args, base_url) or
-           dib_image_action(args, base_url) or
            project_action(args, base_url)):
         die("ManageSF failed to execute your command")
 
