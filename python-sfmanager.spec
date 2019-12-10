@@ -1,67 +1,41 @@
 %global         sum Software Factory command line client
 
 Name:           python-sfmanager
-Version:        0.1
-Release:        4%{?dist}
+Version:        0.6.0
+Release:        1%{?dist}
 Summary:        %{sum}
+Obsoletes:      python2-sfmanager
 
 License:        ASL 2.0
 URL:            https://softwarefactory-project.io/r/p/%{name}
-Source0:        https://github.com/redhat-cip/%{name}/archive/master.tar.gz
+Source0:        HEAD.tgz
 
 BuildArch:      noarch
 
-Requires:       PyYAML
-Requires:       python2-urllib3
-Requires:       python-crypto
-Requires:       python-prettytable
-Requires:       python-requests
-Requires:       GitPython
+Requires:       python3-PyYAML
+Requires:       python3-urllib3
+Requires:       python3-crypto
+Requires:       python3-prettytable
+Requires:       python3-requests
+Requires:       python3-GitPython
 
-Buildrequires:  python2-devel
-Buildrequires:  python-setuptools
-Buildrequires:  python2-pbr
-Buildrequires:  python-nose
-Buildrequires:  python2-mock
-BuildRequires:  PyYAML
-BuildRequires:  python2-urllib3
-BuildRequires:  python-crypto
-BuildRequires:  python-prettytable
-BuildRequires:  python-requests
-BuildRequires:  GitPython
-BuildRequires:  python-sphinx_rtd_theme
+Buildrequires:  python3-devel
+Buildrequires:  python3-setuptools
+Buildrequires:  python3-pbr
 
 %description
 Software Factory command line client
 
-%package -n python2-sfmanager
-Summary:        %{sum}
-Requires:       PyYAML
-Requires:       python2-urllib3
-Requires:       python-crypto
-Requires:       python-prettytable
-Requires:       python-requests
-Requires:       GitPython
+%package -n python3-sfmanager
+Summary:        %sum
+Obsoletes:      python2-sfmanager
 
-Buildrequires:  python2-devel
-Buildrequires:  python-setuptools
-Buildrequires:  python2-pbr
-Buildrequires:  python-nose
-Buildrequires:  python2-mock
-BuildRequires:  PyYAML
-BuildRequires:  python2-urllib3
-BuildRequires:  python-crypto
-BuildRequires:  python-prettytable
-BuildRequires:  python-requests
-BuildRequires:  GitPython
-
-%description -n python2-sfmanager
-Software Factory command line client
+%description -n python3-sfmanager
+%sum
 
 %package doc
 Summary:        Sfmanager documentation
-
-BuildRequires:  python-sphinx
+BuildRequires:  python3-sphinx
 
 %description doc
 Sfmanager documentation
@@ -71,25 +45,22 @@ Sfmanager documentation
 
 %build
 export PBR_VERSION=%{version}
-%{__python2} setup.py build
-sphinx-build -b html -d docs/build/doctrees docs/source docs/build/html
-sphinx-build -b man -d docs/build/doctrees docs/source docs/build/man
+%{__python3} setup.py build
+sphinx-build-3 -b html -d docs/build/doctrees docs/source docs/build/html
+sphinx-build-3 -b man -d docs/build/doctrees docs/source docs/build/man
 
 %install
 export PBR_VERSION=%{version}
-%{__python2} setup.py install --skip-build --root %{buildroot}
+%{__python3} setup.py install --skip-build --root %{buildroot}
 install -p -D -m 644 etc/software-factory.rc %{buildroot}/%{_sysconfdir}/%{name}/software-factory.rc
 mkdir -p %{buildroot}/usr/share/doc/python-sfmanager
 mv docs/build/html/* %{buildroot}/usr/share/doc/python-sfmanager/
 mkdir -p %{buildroot}%{_mandir}/man1
 mv docs/build/man/* %{buildroot}%{_mandir}/man1
 
-%check
-nosetests -v
-
-%files -n python2-sfmanager
-%{python2_sitelib}/*
-%exclude %{python2_sitelib}/*/tests
+%files -n python3-sfmanager
+%{python3_sitelib}/*
+%exclude %{python3_sitelib}/*/tests
 %{_bindir}/*
 %config(noreplace) %{_sysconfdir}/*
 %{_mandir}/man1/*.1.gz
@@ -98,6 +69,9 @@ nosetests -v
 /usr/share/doc/python-sfmanager/
 
 %changelog
+* Tue Dec 10 2019 Tristan Cacqueray <tdecacqu@redhat.com> - 0.6.0-1
+- Update package to python3
+
 * Thu Apr 12 2018 Tristan Cacqueray <tdecacqu@redhat.com> - 0.1-4
 - Remove pysflib requirements
 
