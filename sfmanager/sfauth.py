@@ -26,6 +26,41 @@ class IntrospectionNotAvailableError(Exception):
     pass
 
 
+def get_jwt(remote_gateway, username, password):
+    if 'keycloak' not in remote_gateway:
+        # assumption, might backfire
+        if remote_gateway.startswith('https://'):
+            wk_root = remote_gateway.replace('https://', 'https://keycloak.')
+        else:
+            wk_root = 'https://keycloak.' + remote_gateway
+    else:
+        wk_root = remote_gateway
+    wk_url = "%s/auth/realms/sf/.well-known/openid-configuration"
+    wk = requests.get(wk_url % wk_root, verify=True).json()
+    token_endpoint = wk.get('token_endpoint')
+    if token_endpoint is None:
+        raise Exception('No Token Endpoint defined at %s' % (wk_url % wk_root))
+    data = {
+        'username': username,
+        'password': password,
+        'grant_type': 'password',
+        'client_id': 'managesf',
+    }
+    token_request = requests.post(token_endpoint, data, verify=True)
+    if (int(token_request.status_code) >= 400 and
+       int(token_request.status_code) < 500):
+        raise Exception('Incorrect username/password combination')
+    elif int(token_request.status_code) >= 500:
+        raise Exception('Server failure: %s' % token_request.text)
+    else:
+        jwt = token_request.json()['access_token']
+    return {
+      'headers': {
+          'Authorization': 'bearer %s' % jwt
+                  }
+            }
+
+
 def get_cookie(auth_server,
                username=None, password=None,
                github_access_token=None,
@@ -79,6 +114,36 @@ def get_cauth_info(auth_server, verify=True):
     return _get_service_info(url, verify)
 
 
-def get_managesf_info(auth_server, verify=True):
-    url = "%s/about/" % auth_server
+def get_managesf_info(server, verify=True):
+    url = "%s/about/" % server
     return _get_service_info(url, verify)
+
+
+def get_auth_params(server,
+                    username=None, password=None,
+                    github_access_token=None,
+                    token=None,
+                    api_key=None,
+                    use_ssl=True,
+                    verify=True):
+    services = get_managesf_info(server)['service']['services']
+    params = {'cookies': None,
+              'headers': None}
+    if 'keycloak' in services:
+        if token is not None:
+            extras = {
+              'headers': {
+                  'Authorization': 'bearer %s' % token
+                          }
+                    }
+        else:
+            extras = get_jwt(server, username, password)
+    else:
+        cookie = get_cookie(server, username, password,
+                            github_access_token, api_key, use_ssl,
+                            verify)
+        extras = {
+            'cookies': cookie,
+        }
+    params.update(**extras)
+    return params
