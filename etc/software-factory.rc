@@ -10,4 +10,5 @@ sftests:
     api-key: edcba
     cookie: nomnom
     github-token: abcde
+    token: xxxx
   debug: false
