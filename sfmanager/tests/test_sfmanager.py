@@ -128,14 +128,13 @@ class BaseFunctionalTest(TestCase):
 
     def assert_secure(self, method_verb, cmd_args, action_func,
                       expected_url, expected_data=None, returned_json=None):
-        with patch('sfmanager.sfmanager.get_cookie') as c:
-            c.return_value = 'fake_cookie'
+        with patch('sfmanager.sfmanager.get_auth_params') as c:
+            c.return_value = {'cookies': 'fake_cookie', 'headers': None}
             with patch('sfmanager.sfmanager.request') as method:
                 method.return_value = FakeResponse(json_data=returned_json)
                 parsed = self.parser.parse_args(cmd_args)
                 self.assertTrue(action_func(parsed, self.base_url),
                                 [action_func.__name__, parsed, self.base_url])
-
                 if expected_data is not None:
                     method.assert_called_with(method_verb, expected_url,
                                               json=expected_data)
@@ -155,24 +154,32 @@ class TestUserActions(BaseFunctionalTest):
         expected_url = self.base_url + 'user/u1/'
         expected_data = {'email': data['email'], 'password': data['password'],
                          'fullname': data['fullname']}
-        self.assert_secure('post', args, sfmanager.user_management_action,
-                           expected_url, expected_data, returned_json=data)
+        with patch('sfmanager.sfauth.get_managesf_info') as gmi:
+            gmi.return_value = {'service': {'services': ['cauth', ]}}
+            self.assert_secure('post', args, sfmanager.user_management_action,
+                               expected_url, expected_data, returned_json=data)
 
     def test_user_delete(self):
-        args = self.default_args
-        args += 'user delete --user test2'.split()
-        expected_url = self.base_url + 'user/test2/'
-        self.assert_secure('delete', args, sfmanager.user_management_action,
-                           expected_url)
+        with patch('sfmanager.sfauth.get_managesf_info') as gmi:
+            gmi.return_value = {'service': {'services': ['cauth', ]}}
+            args = self.default_args
+            args += 'user delete --user test2'.split()
+            expected_url = self.base_url + 'user/test2/'
+            self.assert_secure('delete', args,
+                               sfmanager.user_management_action,
+                               expected_url)
 
     def test_user_update(self):
-        args = self.default_args
-        data = {'email': 'e@test.com', 'password': 'abc123'}
-        cmd = 'user update --username t3 --password {password} --email {email}'
-        args += cmd.format(**data).split()
-        expected_url = self.base_url + 'user/t3/'
-        self.assert_secure('post', args, sfmanager.user_management_action,
-                           expected_url, data)
+        with patch('sfmanager.sfauth.get_managesf_info') as gmi:
+            gmi.return_value = {'service': {'services': ['cauth', ]}}
+            args = self.default_args
+            data = {'email': 'e@test.com', 'password': 'abc123'}
+            cmd = ('user update --username t3 --password {password} '
+                   '--email {email}')
+            args += cmd.format(**data).split()
+            expected_url = self.base_url + 'user/t3/'
+            self.assert_secure('post', args, sfmanager.user_management_action,
+                               expected_url, data)
 
     def test_user_update_missing_username(self):
         args = self.default_args
@@ -191,27 +198,33 @@ class TestRegisteredUserActions(BaseFunctionalTest):
         cmd = 'sf_user create -f {full_name} -u {username} --email {email}'
         args += cmd.format(**data).split()
         expected_url = self.base_url + 'services_users/'
-        self.assert_secure('post', args,
-                           sfmanager.services_users_management_action,
-                           expected_url, data)
+        with patch('sfmanager.sfauth.get_managesf_info') as gmi:
+            gmi.return_value = {'service': {'services': ['cauth', ]}}
+            self.assert_secure('post', args,
+                               sfmanager.services_users_management_action,
+                               expected_url, data)
 
     def test_user_delete_username(self):
         args = self.default_args
         args += 'sf_user delete --username test2'.split()
         data = {'username': 'test2', }
         expected_url = self.base_url + 'services_users/'
-        self.assert_secure('delete', args,
-                           sfmanager.services_users_management_action,
-                           expected_url, data)
+        with patch('sfmanager.sfauth.get_managesf_info') as gmi:
+            gmi.return_value = {'service': {'services': ['cauth', ]}}
+            self.assert_secure('delete', args,
+                               sfmanager.services_users_management_action,
+                               expected_url, data)
 
     def test_user_delete_email(self):
         args = self.default_args
         args += 'sf_user delete --email test2@testy.com'.split()
         data = {'email': 'test2@testy.com', }
         expected_url = self.base_url + 'services_users/'
-        self.assert_secure('delete', args,
-                           sfmanager.services_users_management_action,
-                           expected_url, data)
+        with patch('sfmanager.sfauth.get_managesf_info') as gmi:
+            gmi.return_value = {'service': {'services': ['cauth', ]}}
+            self.assert_secure('delete', args,
+                               sfmanager.services_users_management_action,
+                               expected_url, data)
 
     def test_list(self):
         args = self.default_args
@@ -219,9 +232,11 @@ class TestRegisteredUserActions(BaseFunctionalTest):
         expected_url = self.base_url + 'services_users/'
         data = [{'username': 'joe', 'fullname': 'John Doe',
                  'email': 'joe@tests.com', 'cauth_id': '1', 'id': '1'}]
-        self.assert_secure('get', args,
-                           sfmanager.services_users_management_action,
-                           expected_url, returned_json=data)
+        with patch('sfmanager.sfauth.get_managesf_info') as gmi:
+            gmi.return_value = {'service': {'services': ['cauth', ]}}
+            self.assert_secure('get', args,
+                               sfmanager.services_users_management_action,
+                               expected_url, returned_json=data)
 
 
 class TestGithubActions(BaseFunctionalTest):

@@ -39,7 +39,8 @@ from . import sfauth
 
 JSON_OUTPUT = False
 VERIFY_SSL = True
-COOKIE = None
+REQUESTS_PARAMS = {'cookies': None,
+                   'headers': None}
 
 DEFAULT_RC_PATHS = [os.path.join(os.getcwd(), '.software-factory.rc'),
                     os.path.expanduser('~/.software-factory.rc'),
@@ -49,11 +50,14 @@ DEFAULT_RC_PATHS = [os.path.join(os.getcwd(), '.software-factory.rc'),
 
 
 logger = logging.getLogger('sfmanager')
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+logger.addHandler(handler)
 
 
 def request(http_method, url, json=None, stream=False):
     return requests.request(http_method, url=url, verify=VERIFY_SSL,
-                            json=json, cookies=COOKIE, stream=stream)
+                            json=json, stream=stream, **REQUESTS_PARAMS)
 
 
 def _build_path(old_path):
@@ -187,6 +191,17 @@ def load_rc_file(args):
                     "no rc file found" % args.env)
 
 
+def fail_if_keycloak(func):
+    """Actions that cannot be run without cauth."""
+    def wrapper_func(args, base_url):
+        services = sfauth.get_managesf_info(args.url)['service']['services']
+        if 'keycloak' in services:
+            die("This action is only available through the cauth service")
+        else:
+            return func(args, base_url)
+    return wrapper_func
+
+
 def default_arguments(parser):
     parser.add_argument('--env', '-e',
                         help='The environment to use from an RC file. '
@@ -198,6 +213,8 @@ def default_arguments(parser):
                         help='Software Factory public gateway URL')
     parser.add_argument('--auth', metavar='username[:password]',
                         help='Authentication information',)
+    parser.add_argument('--token', metavar='JSONWebToken',
+                        help='Authenticate with a Keycloak Token')
     parser.add_argument('--github-token', metavar='GithubPersonalAccessToken',
                         help='Authenticate with a Github Access Token')
     parser.add_argument('--api-key', metavar='APIKEY',
@@ -348,30 +365,31 @@ def command_options(parser):
     project_command(sp)
 
 
-def get_cookie(args):
+def get_auth_params(args):
     if args.cookie is not None:
-        return args.cookie
+        return {'cookies': args.cookie, 'headers': None}
     try:
         url = args.auth_server_url.rstrip('/')
         if args.auth is not None:
             (username, password) = args.auth.split(':')
-            cookie = sfauth.get_cookie(url, username=username,
-                                       password=password,
-                                       verify=(not args.insecure))
+            params = sfauth.get_auth_params(url, username=username,
+                                            password=password,
+                                            verify=(not args.insecure))
         elif args.github_token is not None:
             token = args.github_token
-            cookie = sfauth.get_cookie(url, github_access_token=token,
-                                       verify=(not args.insecure))
+            params = sfauth.get_auth_params(url, github_access_token=token,
+                                            verify=(not args.insecure))
+        elif args.token is not None:
+            token = args.token
+            params = sfauth.get_auth_params(url, token=token,
+                                            verify=(not args.insecure))
         elif args.api_key is not None:
             api_key = args.api_key
-            cookie = sfauth.get_cookie(url, api_key=api_key,
-                                       verify=(not args.insecure))
+            params = sfauth.get_auth_params(url, api_key=api_key,
+                                            verify=(not args.insecure))
         else:
             die('Please provide credentials')
-        if cookie:
-            return cookie
-        else:
-            die('Authentication failed')
+        return params
     except Exception as e:
         die(e.message)
 
@@ -422,6 +440,7 @@ def build_url(*args):
     return '/'.join(s.strip('/') for s in args) + '/'
 
 
+@fail_if_keycloak
 def apikey_action(args, base_url):
     url = base_url + '/apikey'
     if args.command != 'apikey':
@@ -540,6 +559,7 @@ def github_action(args, base_url):
     return False
 
 
+@fail_if_keycloak
 def user_management_action(args, base_url):
     if args.command != 'user':
         return False
@@ -610,8 +630,8 @@ def project_action(args, base_url):
             except ValueError:
                 origin = repo.create_remote('origin', c_uri)
             output = repo.git.remote("show", "origin").splitlines()
-            head = [l.split(':')[-1].strip() for l in output if
-                    re.match(r"^\s+HEAD branch: .+$", l)][0]
+            head = [line.split(':')[-1].strip() for line in output if
+                    re.match(r"^\s+HEAD branch: .+$", line)][0]
             repo.git.config("http.sslVerify", "%s" % (not args.insecure))
             origin.fetch(head)
             if not light_update:
@@ -621,6 +641,7 @@ def project_action(args, base_url):
     return True
 
 
+@fail_if_keycloak
 def services_users_management_action(args, base_url):
     if args.command != 'sf_user':
         return False
@@ -679,9 +700,6 @@ def main():
     sfconfig = None
     if os.path.isfile("/etc/software-factory/sfconfig.yaml"):
         sfconfig = yaml.load(open("/etc/software-factory/sfconfig.yaml"))
-    # could be remove when puppet will be gone (2.2.8)
-    elif os.path.isfile("/etc/puppet/hiera/sf/sfconfig.yaml"):
-        sfconfig = yaml.load(open("/etc/puppet/hiera/sf/sfconfig.yaml"))
     if not args.url and sfconfig:
         args.url = "https://%s" % sfconfig["fqdn"]
     if not args.auth and sfconfig:
@@ -745,7 +763,7 @@ def main():
 
     if args.command != "github" and not (
             args.command == 'project' and args.subcommand == 'clone'):
-        globals()['COOKIE'] = {'auth_pubtkt': get_cookie(args)}
+        globals()['REQUESTS_PARAMS'] = get_auth_params(args)
 
     if args.insecure:
         import urllib3
