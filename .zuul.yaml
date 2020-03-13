@@ -6,10 +6,10 @@
         - tox-py27:
             voting: false
         - tox-py36:
-            nodeset: fedora-latest-runc
+            nodeset: fedora-latest-pod
             voting: true
         - tox-pep8-py36:
-            nodeset: fedora-latest-runc
+            nodeset: fedora-latest-pod
             voting: true
     gate:
       jobs:
@@ -18,8 +18,8 @@
         - tox-py27:
             voting: false
         - tox-py36:
-            nodeset: fedora-latest-runc
+            nodeset: fedora-latest-pod
             voting: true
         - tox-pep8-py36:
-            nodeset: fedora-latest-runc
+            nodeset: fedora-latest-pod
             voting: true
