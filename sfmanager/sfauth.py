@@ -35,13 +35,21 @@ class IntrospectionNotAvailableError(Exception):
 
 
 def get_jwt(remote_gateway, username, password):
-    if 'keycloak' not in remote_gateway:
-        # assumption, might backfire
-        if not remote_gateway.startswith('https://'):
-            wk_root = 'https://' + remote_gateway
+    if (not remote_gateway.startswith('https://') and
+       not remote_gateway.startswith('http://')):
+        wk_root = 'https://' + remote_gateway
     else:
         wk_root = remote_gateway
-    wk_url = "%s/auth/realms/sf/.well-known/openid-configuration"
+    # TODO should be selectable
+    if username == "admin":
+        realm = "master"
+        client_id = "admin-cli"
+    else:
+        realm = "sf"
+        client_id = "managesf"
+    wk_url = ("%s/auth/realms/" +
+              realm +
+              "/.well-known/openid-configuration")
     wk = requests.get(wk_url % wk_root, verify=True).json()
     token_endpoint = wk.get('token_endpoint')
     if token_endpoint is None:
@@ -50,7 +58,7 @@ def get_jwt(remote_gateway, username, password):
         'username': username,
         'password': password,
         'grant_type': 'password',
-        'client_id': 'managesf',
+        'client_id': client_id,
     }
     token_request = requests.post(token_endpoint, data, verify=True)
     if (int(token_request.status_code) >= 400 and
