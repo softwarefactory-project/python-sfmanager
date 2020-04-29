@@ -34,15 +34,23 @@ class IntrospectionNotAvailableError(Exception):
     pass
 
 
-def get_jwt(remote_gateway, username, password):
-    if 'keycloak' not in remote_gateway:
-        # assumption, might backfire
-        if not remote_gateway.startswith('https://'):
-            wk_root = 'https://' + remote_gateway
+def get_jwt(remote_gateway, username, password, verify=True):
+    if (not remote_gateway.startswith('https://') and
+       not remote_gateway.startswith('http://')):
+        wk_root = 'https://' + remote_gateway
     else:
         wk_root = remote_gateway
-    wk_url = "%s/auth/realms/sf/.well-known/openid-configuration"
-    wk = requests.get(wk_url % wk_root, verify=True).json()
+    # TODO should be selectable
+    if username == "admin":
+        realm = "master"
+        client_id = "admin-cli"
+    else:
+        realm = "sf"
+        client_id = "managesf"
+    wk_url = ("%s/auth/realms/" +
+              realm +
+              "/.well-known/openid-configuration")
+    wk = requests.get(wk_url % wk_root, verify=verify).json()
     token_endpoint = wk.get('token_endpoint')
     if token_endpoint is None:
         raise Exception('No Token Endpoint defined at %s' % (wk_url % wk_root))
@@ -50,9 +58,9 @@ def get_jwt(remote_gateway, username, password):
         'username': username,
         'password': password,
         'grant_type': 'password',
-        'client_id': 'managesf',
+        'client_id': client_id,
     }
-    token_request = requests.post(token_endpoint, data, verify=True)
+    token_request = requests.post(token_endpoint, json=data, verify=verify)
     if (int(token_request.status_code) >= 400 and
        int(token_request.status_code) < 500):
         raise Exception('Incorrect username/password combination')
@@ -128,7 +136,11 @@ def get_cauth_info(auth_server, verify=True):
 
 
 def get_managesf_info(server, verify=True):
-    url = "%s/about/" % server
+    if not server.endswith('manage'):
+        _server = "%s/manage" % server
+    else:
+        _server = server
+    url = "%s/about/" % _server
     return _get_service_info(url, verify)
 
 
@@ -139,7 +151,7 @@ def get_auth_params(server,
                     api_key=None,
                     use_ssl=True,
                     verify=True):
-    services = get_managesf_info(server)['service']['services']
+    services = get_managesf_info(server, verify)['service']['services']
     params = {'cookies': None,
               'headers': None}
     if 'keycloak' in services:
@@ -150,7 +162,7 @@ def get_auth_params(server,
                           }
                     }
         else:
-            extras = get_jwt(server, username, password)
+            extras = get_jwt(server, username, password, verify)
     else:
         cookie = get_cookie(server, username, password,
                             github_access_token, api_key, use_ssl,

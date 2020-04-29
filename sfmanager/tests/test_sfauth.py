@@ -107,7 +107,7 @@ class TestSFAuth(TestCase):
                 'version': 'x.y.z',
                 'services': ['gerrit', ]}})
             i = sfauth.get_managesf_info('https://auth.tests.dom')
-            g.assert_called_with('https://auth.tests.dom/about/',
+            g.assert_called_with('https://auth.tests.dom/manage/about/',
                                  allow_redirects=False,
                                  verify=True)
             self.assertEqual('managesf',
