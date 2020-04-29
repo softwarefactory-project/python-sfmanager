@@ -24,6 +24,8 @@ import re
 import git
 import requests
 import sqlite3
+import shlex
+import subprocess
 import sys
 import time
 try:
@@ -191,15 +193,11 @@ def load_rc_file(args):
                     "no rc file found" % args.env)
 
 
-def fail_if_keycloak(func):
+def fail_if_keycloak(args):
     """Actions that cannot be run without cauth."""
-    def wrapper_func(args, base_url):
-        services = sfauth.get_managesf_info(args.url)['service']['services']
-        if 'keycloak' in services:
-            die("This action is only available through the cauth service")
-        else:
-            return func(args, base_url)
-    return wrapper_func
+    services = sfauth.get_managesf_info(args.url)['service']['services']
+    if 'keycloak' in services:
+        die("This action is only available through the cauth service")
 
 
 def default_arguments(parser):
@@ -232,6 +230,9 @@ def default_arguments(parser):
     parser.add_argument('--debug', default=False, action='store_true',
                         help='enable debug messages in console, '
                         'disabled by default')
+    parser.add_argument('--gerrit-admin-key',
+                        default="/root/.ssh/gerrit_admin",
+                        help='path to gerrit admin ssh private key')
 
 
 def user_management_command(parser):
@@ -285,6 +286,11 @@ def sf_user_management_command(parser):
                         required=True, help="The user's full name")
     create.add_argument('--email', '-e', nargs='?', metavar='email',
                         required=True, help="The user's email")
+    create.add_argument('--ssh-key', '-s', nargs='?',
+                        metavar='/path/to/pubkey',
+                        required=False, help="The user's ssh public key file")
+    create.add_argument('--password', '-p', nargs='?', metavar='password',
+                        required=False, help="the user's password")
     sfu_sub.add_parser('list', help='list all registered users')
     delete = sfu_sub.add_parser('delete', help='de-register a user from SF')
     delete.add_argument('--username', '-u', nargs='?', metavar='username',
@@ -440,7 +446,6 @@ def build_url(*args):
     return '/'.join(s.strip('/') for s in args) + '/'
 
 
-@fail_if_keycloak
 def apikey_action(args, base_url):
     url = base_url + '/apikey'
     if args.command != 'apikey':
@@ -448,6 +453,8 @@ def apikey_action(args, base_url):
 
     if args.subcommand not in ['create', 'delete', 'get']:
         return False
+
+    fail_if_keycloak(args)
 
     if args.subcommand == 'get':
         resp = request('get', url)
@@ -559,12 +566,117 @@ def github_action(args, base_url):
     return False
 
 
-@fail_if_keycloak
 def user_management_action(args, base_url):
     if args.command != 'user':
         return False
     if args.subcommand not in ['create', 'update', 'delete']:
         return False
+    services = sfauth.get_managesf_info(
+        args.url,
+        not args.insecure)['service']['services']
+    if 'keycloak' in services:
+        return keycloak_user_management_action(args, base_url)
+    else:
+        return cauth_user_management_action(args, base_url)
+
+
+def keycloak_user_management_action(args, base_url):
+    base = args.url.rstrip('/')
+    url = base + '/auth/admin/realms/sf/users'
+    if args.subcommand == 'create':
+        password = None
+        if args.password is None:
+            if not getattr(args, 'email'):
+                die("email required if no password is provided.")
+            print("An email will be sent to %s "
+                  "to set the user's password." % args.email)
+        elif args.password:
+            password = args.password
+        userInfo = {"username": args.username,
+                    "enabled": True}
+        if getattr(args, 'email'):
+            userInfo['email'] = args.email
+        if getattr(args, 'fullname'):
+            userInfo['firstName'] = args.fullname[0]
+            if len(args.fullname) > 1:
+                userInfo['lastName'] = args.fullname[1]
+        if password is not None:
+            userInfo['credentials'] = [{"type": "password",
+                                        "value": password}]
+        resp = request('post', url, json=userInfo)
+        if resp.ok:
+            if getattr(args, 'ssh_key'):
+                kc_user = request('get',
+                                  url + ('?username=%s' % args.username))
+                userInfo = kc_user.json()[0]
+                with open(args.ssh_key, 'r') as f:
+                    userInfo['attributes'] = {"publicKey": [f.read()]}
+                resp = request('put', url + "/" + userInfo["id"],
+                               json=userInfo)
+            # send an email to the user to complete registration
+            if password is None:
+                action_url = url + "/%s/execute-action-emails" % userInfo['id']
+                action_resp = request('put', action_url,
+                                      json=["UPDATE_PASSWORD",
+                                            "UPDATE_PROFILE"])
+                if not action_resp.ok:
+                    print(action_resp.text)
+            print("Provisioning services ...")
+        else:
+            die('Could not create user "%s": "%s"' (args.username, resp.text))
+    elif args.subcommand == 'delete':
+        resp = request('get',
+                       url + ('?username=%s' % args.username))
+        if resp.ok:
+            kc_users = resp.json()
+            if len(kc_users) != 1:
+                die('%i user(s) found as username "%s"' % (len(kc_users),
+                                                           args.username))
+            user_id = kc_users[0]['id']
+            del_resp = request('delete', url + "/" + user_id)
+            if del_resp.ok:
+                print("Deleting in services ...")
+            else:
+                die('Error deleting user "%s": %s' % (args.username,
+                                                      del_resp.text))
+        else:
+            die("Error during user lookup: %s" % resp.text)
+    else:
+        resp = request('get',
+                       url + ('?username=%s' % args.username))
+        if resp.ok:
+            kc_users = resp.json()
+            if len(kc_users) != 1:
+                die('%i user(s) found as username "%s"' % (len(kc_users),
+                                                           args.username))
+            userInfo = kc_users[0]
+            user_id = userInfo['id']
+            if getattr(args, 'email'):
+                userInfo['email'] = args.email
+            if getattr(args, 'fullname'):
+                userInfo['firstName'] = args.fullname[0]
+                if len(args.fullname) > 1:
+                    userInfo['lastName'] = args.fullname[1]
+            password = getattr(args, 'password')
+            if password is not None:
+                userInfo['credentials'] = [{"type": "password",
+                                            "value": password}]
+            if getattr(args, 'ssh_key'):
+                with open(args.ssh_key, 'r') as f:
+                    userInfo['attributes'] = {"publicKey": [f.read()]}
+            update_resp = request('put', url + "/" + user_id, json=userInfo)
+            if update_resp.ok:
+                print("Updating in services ...")
+            else:
+                die('Updating user "%s" failed: %s' % (args.username,
+                                                       update_resp.text))
+        else:
+            die("Error during user lookup: %s" % resp.text)
+    keycloak_services_users_management_action(args, base_url)
+    return response(resp)
+
+
+def cauth_user_management_action(args, base_url):
     url = build_url(base_url, 'user', args.username)
     if args.subcommand in ['create', 'update']:
         password = None
@@ -630,8 +742,8 @@ def project_action(args, base_url):
             except ValueError:
                 origin = repo.create_remote('origin', c_uri)
             output = repo.git.remote("show", "origin").splitlines()
-            head = [l.split(':')[-1].strip() for l in output if
-                    re.match(r"^\s+HEAD branch: .+$", l)][0]
+            head = [line.split(':')[-1].strip() for line in output if
+                    re.match(r"^\s+HEAD branch: .+$", line)][0]
             repo.git.config("http.sslVerify", "%s" % (not args.insecure))
             origin.fetch(head)
             if not light_update:
@@ -641,12 +753,7 @@ def project_action(args, base_url):
     return True
 
 
-@fail_if_keycloak
-def services_users_management_action(args, base_url):
-    if args.command != 'sf_user':
-        return False
-    if args.subcommand not in ['create', 'list', 'delete']:
-        return False
+def cauth_services_users_management_action(args, base_url):
     url = build_url(base_url, 'services_users')
     if args.subcommand in ['create', 'delete']:
         info = {}
@@ -674,6 +781,54 @@ def services_users_management_action(args, base_url):
         else:
             return response(resp)
     return response(resp)
+
+
+def keycloak_services_users_management_action(args, base_url):
+    if args.subcommand in ['create', 'update']:
+        print("Provisioning gerrit ...")
+        cmd = "ssh admin@gerrit -p 29418 -i %s gerrit create-account "
+        cmd = cmd % args.gerrit_admin_key
+        if getattr(args, 'fullname'):
+            cmd += " --full-name \"'%s'\"" % ' '.join(args.fullname)
+        if getattr(args, 'email'):
+            cmd += " --email %s" % args.email
+        if getattr(args, 'password'):
+            cmd += " --http-password %s" % args.password
+        if getattr(args, 'username'):
+            cmd += " %s" % args.username
+    else:
+        print("Deactivating user in gerrit ...")
+        cmd = "ssh admin@gerrit -p 29418 -i %s gerrit set-account --inactive "
+        cmd = cmd % args.gerrit_admin_key
+        cmd += args.username
+    try:
+        env = os.environ.copy()
+        env['LC_ALL'] = 'en_US.UTF-8'
+        output = subprocess.check_output(
+            shlex.split(cmd), stderr=subprocess.STDOUT,
+            env=env).decode('utf-8')
+    except subprocess.CalledProcessError as err:
+        if err.output:
+            die('Command "%s" failed with the following '
+                'error message: "%s"' % (cmd, err.output))
+        else:
+            die("Error with user management in gerrit: %s" % err)
+    print(output)
+    return True
+
+
+def services_users_management_action(args, base_url):
+    if args.command != 'sf_user':
+        return False
+    if args.subcommand not in ['create', 'list', 'delete']:
+        return False
+    services = sfauth.get_managesf_info(
+        args.url,
+        not args.insecure)['service']['services']
+    if 'keycloak' in services:
+        return keycloak_services_users_management_action(args, base_url)
+    else:
+        return cauth_services_users_management_action(args, base_url)
 
 
 def main():
