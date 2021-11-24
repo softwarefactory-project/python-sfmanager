@@ -2,5 +2,5 @@ requests
 pycrypto
 urllib3
 PrettyTable
-pyyaml
+pyyaml<6.0.0
 GitPython

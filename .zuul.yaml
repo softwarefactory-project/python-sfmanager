@@ -6,10 +6,16 @@
         - tox-py27:
             voting: false
         - tox-py36:
-            nodeset: fedora-latest-pod
+            nodeset:
+              nodes:
+                - name: testrunner
+                  label: zuul-worker-ubi7
             voting: true
         - tox-pep8-py36:
-            nodeset: fedora-latest-pod
+            nodeset:
+              nodes:
+                - name: testrunner
+                  label: zuul-worker-ubi7
             voting: true
     gate:
       jobs:
@@ -18,8 +24,17 @@
         - tox-py27:
             voting: false
         - tox-py36:
-            nodeset: fedora-latest-pod
+            nodeset:
+              nodes:
+                - name: testrunner
+                  label: zuul-worker-ubi7
             voting: true
         - tox-pep8-py36:
-            nodeset: fedora-latest-pod
+            nodeset:
+              nodes:
+                - name: testrunner
+                  label: zuul-worker-ubi7
             voting: true
+    release:
+      jobs:
+        - upload-pypi
