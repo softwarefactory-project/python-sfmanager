@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2016 Red Hat
+# Copyright (C) 2016-2021 Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -18,5 +18,10 @@
 import setuptools
 
 setuptools.setup(
+    name="python-sfmanager",
     setup_requires=['pbr'],
+    packages=["sfmanager"],
+    description="python lib for managesf software-factory project",
+    long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
     pbr=True)
