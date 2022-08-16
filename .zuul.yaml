@@ -6,16 +6,20 @@
         - tox-py27:
             voting: false
         - tox-py36:
+            pre-run:
+              - playbooks/prepare-host.yaml
             nodeset:
               nodes:
                 - name: testrunner
-                  label: zuul-worker-ubi7
+                  label: pod-python-f35
             voting: true
         - tox-pep8-py36:
+            pre-run:
+              - playbooks/prepare-host.yaml
             nodeset:
               nodes:
                 - name: testrunner
-                  label: zuul-worker-ubi7
+                  label: pod-python-f35
             voting: true
     gate:
       jobs:
@@ -24,16 +28,20 @@
         - tox-py27:
             voting: false
         - tox-py36:
+            pre-run:
+              - playbooks/prepare-host.yaml
             nodeset:
               nodes:
                 - name: testrunner
-                  label: zuul-worker-ubi7
+                  label: pod-python-f35
             voting: true
         - tox-pep8-py36:
+            pre-run:
+              - playbooks/prepare-host.yaml
             nodeset:
               nodes:
                 - name: testrunner
-                  label: zuul-worker-ubi7
+                  label: pod-python-f35
             voting: true
     release:
       jobs:

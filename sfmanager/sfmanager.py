@@ -930,11 +930,10 @@ def main():
         import urllib3
         urllib3.disable_warnings()
 
-    if not(apikey_action(args, base_url) or
-           user_management_action(args, base_url) or
-           github_action(args, base_url) or
-           services_users_management_action(args, base_url) or
-           project_action(args, base_url)):
+    if not (apikey_action(args, base_url) or user_management_action(
+            args, base_url) or github_action(args, base_url)
+            or services_users_management_action(args, base_url)
+            or project_action(args, base_url)):
         die("ManageSF failed to execute your command")
 
 

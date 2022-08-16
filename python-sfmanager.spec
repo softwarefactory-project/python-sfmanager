@@ -1,8 +1,8 @@
 %global         sum Software Factory command line client
 
 Name:           python-sfmanager
-Version:        0.6.0
-Release:        1%{?dist}
+Version:        0.8.4
+Release:        2%{?dist}
 Summary:        %{sum}
 Obsoletes:      python2-sfmanager
 
@@ -11,13 +11,6 @@ URL:            https://softwarefactory-project.io/r/p/%{name}
 Source0:        HEAD.tgz
 
 BuildArch:      noarch
-
-Requires:       python3-PyYAML
-Requires:       python3-urllib3
-Requires:       python3-crypto
-Requires:       python3-prettytable
-Requires:       python3-requests
-Requires:       python3-GitPython
 
 Buildrequires:  python3-devel
 Buildrequires:  python3-setuptools
@@ -29,6 +22,13 @@ Software Factory command line client
 %package -n python3-sfmanager
 Summary:        %sum
 Obsoletes:      python2-sfmanager
+
+Requires:       python3-PyYAML
+Requires:       python3-urllib3
+Requires:       python3-crypto
+Requires:       python3-prettytable
+Requires:       python3-requests
+Requires:       python3-GitPython
 
 %description -n python3-sfmanager
 %sum
@@ -69,6 +69,9 @@ mv docs/build/man/* %{buildroot}%{_mandir}/man1
 /usr/share/doc/python-sfmanager/
 
 %changelog
+* Tue Aug 16 2022 Daniel Pawlik <dpawlik@redhat.com> - 0.8.4-2
+- Fix dependencies requirements
+
 * Tue Dec 10 2019 Tristan Cacqueray <tdecacqu@redhat.com> - 0.6.0-1
 - Update package to python3
 
