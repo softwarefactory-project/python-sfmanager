@@ -11,7 +11,7 @@
             nodeset:
               nodes:
                 - name: testrunner
-                  label: pod-python-f35
+                  label: zuul-worker-f37
             voting: true
         - tox-pep8-py36:
             pre-run:
@@ -19,7 +19,7 @@
             nodeset:
               nodes:
                 - name: testrunner
-                  label: pod-python-f35
+                  label: zuul-worker-f37
             voting: true
     gate:
       jobs:
@@ -33,7 +33,7 @@
             nodeset:
               nodes:
                 - name: testrunner
-                  label: pod-python-f35
+                  label: zuul-worker-f37
             voting: true
         - tox-pep8-py36:
             pre-run:
@@ -41,7 +41,7 @@
             nodeset:
               nodes:
                 - name: testrunner
-                  label: pod-python-f35
+                  label: zuul-worker-f37
             voting: true
     release:
       jobs:
